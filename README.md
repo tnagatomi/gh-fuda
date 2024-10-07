@@ -1,6 +1,6 @@
 # gh-fuda
 
-`gh-fuda` is a gh extension for manipulating labels across multiple repositories
+`gh-fuda` is a gh extension which extends label manipulations.
 
 ## Installation
 

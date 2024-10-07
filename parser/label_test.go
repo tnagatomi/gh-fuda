@@ -23,7 +23,7 @@ package parser
 
 import (
 	"github.com/google/go-cmp/cmp"
-	"github.com/tnagatomi/gh-mrlabel/option"
+	"github.com/tnagatomi/gh-fuda/option"
 	"testing"
 )
 

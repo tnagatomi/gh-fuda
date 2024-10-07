@@ -24,7 +24,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/tnagatomi/gh-mrlabel/executor"
+	"github.com/tnagatomi/gh-fuda/executor"
 	"io"
 	"os"
 

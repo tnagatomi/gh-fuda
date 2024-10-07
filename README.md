@@ -1,13 +1,13 @@
-# gh-mrlabel
+# gh-fuda
 
-`gh-mrlabel` is a gh extension for manipulating labels across multiple repositories
+`gh-fuda` is a gh extension for manipulating labels across multiple repositories
 
 ## Installation
 
 Install as a [gh](https://cli.github.com/) extension (ref. [gh manual of gh extension install](https://cli.github.com/manual/gh_extension_install)).
 
 ```console
-$ gh extension install tnagatomi/gh-mrlabel
+$ gh extension install tnagatomi/gh-fuda
 ```
 
 ## Usage
@@ -24,7 +24,7 @@ Login to GitHub with `gh auth login` (ref. [gh manual of gh auth login](https://
 #### Create Labels
 
 ```console
-$ gh mrlabel create
+$ gh fuda create
 ```
 
 Create specified labels to the specified repositories.
@@ -36,13 +36,13 @@ Create specified labels to the specified repositories.
 ##### Example
 
 ```console
-$ gh mrlabel create -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
+$ gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
 ```
 
 #### Delete Labels
 
 ```console
-$ gh mrlabel delete
+$ gh fuda delete
 ```
 
 Delete specified labels from the specified repositories.
@@ -55,13 +55,13 @@ Delete specified labels from the specified repositories.
 ##### Example
 
 ```console
-$ gh mrlabel delete -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1,label2,label3"
+$ gh fuda delete -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1,label2,label3"
 ```
 
 #### Sync Labels
 
 ```console
-$ gh mrlabel sync
+$ gh fuda sync
 ```
 
 Sync the labels in the specified repositories with the specified labels.
@@ -74,13 +74,13 @@ Sync the labels in the specified repositories with the specified labels.
 ##### Example
 
 ```console
-$ gh mrlabel sync -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
+$ gh fuda sync -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
 ```
 
 #### Empty Labels
 
 ```console
-$ gh mrlabel empty
+$ gh fuda empty
 ```
 
 Delete all labels from the specified repositories.
@@ -92,5 +92,5 @@ Delete all labels from the specified repositories.
 ##### Example
 
 ```console
-$ gh mrlabel empty -R "owner1/repo1,owner1/repo2,owner2/repo1"
+$ gh fuda empty -R "owner1/repo1,owner1/repo2,owner2/repo1"
 ```

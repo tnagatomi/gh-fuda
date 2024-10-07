@@ -24,9 +24,9 @@ package executor
 import (
 	"fmt"
 	"github.com/google/go-github/v59/github"
-	"github.com/tnagatomi/gh-mrlabel/api"
-	"github.com/tnagatomi/gh-mrlabel/option"
-	"github.com/tnagatomi/gh-mrlabel/parser"
+	"github.com/tnagatomi/gh-fuda/api"
+	"github.com/tnagatomi/gh-fuda/option"
+	"github.com/tnagatomi/gh-fuda/parser"
 	"io"
 	"net/http"
 	"strings"

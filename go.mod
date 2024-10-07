@@ -1,4 +1,4 @@
-module github.com/tnagatomi/gh-mrlabel
+module github.com/tnagatomi/gh-fuda
 
 go 1.22
 

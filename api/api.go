@@ -25,7 +25,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/go-github/v59/github"
-	"github.com/tnagatomi/gh-mrlabel/option"
+	"github.com/tnagatomi/gh-fuda/option"
 	"strings"
 )
 

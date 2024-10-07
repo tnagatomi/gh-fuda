@@ -21,7 +21,7 @@ THE SOFTWARE.
 */
 package main
 
-import "github.com/tnagatomi/gh-mrlabel/cmd"
+import "github.com/tnagatomi/gh-fuda/cmd"
 
 func main() {
 	cmd.Execute()

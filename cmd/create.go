@@ -25,7 +25,7 @@ import (
 	"fmt"
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/spf13/cobra"
-	"github.com/tnagatomi/gh-mrlabel/executor"
+	"github.com/tnagatomi/gh-fuda/executor"
 	"io"
 	"os"
 )

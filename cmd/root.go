@@ -35,7 +35,7 @@ var (
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "gh-mrlabel",
+	Use:   "gh-fuda",
 	Short: "gh extension for manipulating labels across multiple repositories",
 }
 

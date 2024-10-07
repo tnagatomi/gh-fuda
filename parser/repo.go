@@ -24,7 +24,7 @@ package parser
 
 import (
 	"fmt"
-	"github.com/tnagatomi/gh-mrlabel/option"
+	"github.com/tnagatomi/gh-fuda/option"
 	"strings"
 )
 

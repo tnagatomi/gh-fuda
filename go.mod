@@ -6,6 +6,7 @@ require (
 	github.com/cli/go-gh/v2 v2.5.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v59 v59.0.0
+	github.com/h2non/gock v1.2.0
 	github.com/spf13/cobra v1.8.0
 )
 
@@ -14,7 +15,6 @@ require (
 	github.com/cli/safeexec v1.0.0 // indirect
 	github.com/cli/shurcooL-graphql v0.0.4 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/h2non/gock v1.2.0 // indirect
 	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/henvic/httpretty v0.0.6 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

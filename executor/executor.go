@@ -148,6 +148,21 @@ func (e *Executor) Sync(out io.Writer, repoOption string, labelOption string) er
 	return nil
 }
 
+// Empty empties labels across multiple repositories
+func (e *Executor) Empty(out io.Writer, repoOption string) error {
+	repos, err := parser.Repo(repoOption)
+	if err != nil {
+		return fmt.Errorf("failed to parse repo option: %v", err)
+	}
+
+	err = e.emptyLabels(out, repos)
+	if err != nil {
+		return fmt.Errorf("failed to empty labels: %v", err)
+	}
+
+	return nil
+}
+
 func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) error {
 	for _, repo := range repos {
 		labels, err := api.ListLabels(e.client, repo)
@@ -169,20 +184,5 @@ func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) error {
 			}
 		}
 	}
-	return nil
-}
-
-// Empty empties labels across multiple repositories
-func (e *Executor) Empty(out io.Writer, repoOption string) error {
-	repos, err := parser.Repo(repoOption)
-	if err != nil {
-		return fmt.Errorf("failed to parse repo option: %v", err)
-	}
-
-	err = e.emptyLabels(out, repos)
-	if err != nil {
-		return fmt.Errorf("failed to empty labels: %v", err)
-	}
-
 	return nil
 }

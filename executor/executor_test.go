@@ -78,6 +78,10 @@ Would create label "question" for repository "tnagatomi/mock-repo"
 			}
 
 			client, err := api.NewHTTPClient(api.ClientOptions{})
+			if err != nil {
+				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 
 			e := &Executor{
 				client: github.NewClient(client),
@@ -164,6 +168,10 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 			}
 
 			client, err := api.NewHTTPClient(api.ClientOptions{})
+			if err != nil {
+				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 
 			e := &Executor{
 				client: github.NewClient(client),
@@ -278,6 +286,10 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo"
 			}
 
 			client, err := api.NewHTTPClient(api.ClientOptions{})
+			if err != nil {
+				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 
 			e := &Executor{
 				client: github.NewClient(client),
@@ -372,6 +384,10 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 			}
 
 			client, err := api.NewHTTPClient(api.ClientOptions{})
+			if err != nil {
+				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
 
 			e := &Executor{
 				client: github.NewClient(client),

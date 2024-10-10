@@ -2,9 +2,9 @@ package executor
 
 import (
 	"bytes"
-	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/google/go-github/v59/github"
 	"github.com/h2non/gock"
+	"github.com/tnagatomi/gh-fuda/api"
+	"net/http"
 	"testing"
 )
 
@@ -77,14 +77,13 @@ Would create label "question" for repository "tnagatomi/mock-repo"
 				tt.mock()
 			}
 
-			client, err := api.NewHTTPClient(api.ClientOptions{})
+			api, err := api.NewAPI(http.DefaultClient)
 			if err != nil {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
 			e := &Executor{
-				client: github.NewClient(client),
+				api:    api,
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
@@ -127,15 +126,12 @@ func TestDelete(t *testing.T) {
 			mock: func() {
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/bug").
-					MatchType("json").
 					Reply(204)
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/enhancement").
-					MatchType("json").
 					Reply(204)
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/question").
-					MatchType("json").
 					Reply(204)
 			},
 			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo"
@@ -145,7 +141,7 @@ Deleted label "question" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "create labels dry-run",
+			name:   "delete labels dry-run",
 			dryrun: true,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -167,14 +163,13 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 				tt.mock()
 			}
 
-			client, err := api.NewHTTPClient(api.ClientOptions{})
+			api, err := api.NewAPI(http.DefaultClient)
 			if err != nil {
-				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
 			e := &Executor{
-				client: github.NewClient(client),
+				api:    api,
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
@@ -216,20 +211,16 @@ func TestSync(t *testing.T) {
 			mock: func() {
 				gock.New("https://api.github.com").
 					Get("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
 					Reply(200).
 					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/bug").
-					MatchType("json").
 					Reply(204)
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/enhancement").
-					MatchType("json").
 					Reply(204)
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/question").
-					MatchType("json").
 					Reply(204)
 				gock.New("https://api.github.com").
 					Post("/repos/tnagatomi/mock-repo/labels").
@@ -264,7 +255,6 @@ Created label "enhancement" for repository "tnagatomi/mock-repo"
 			mock: func() {
 				gock.New("https://api.github.com").
 					Get("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
 					Reply(200).
 					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
 			},
@@ -285,14 +275,13 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo"
 				tt.mock()
 			}
 
-			client, err := api.NewHTTPClient(api.ClientOptions{})
+			api, err := api.NewAPI(http.DefaultClient)
 			if err != nil {
-				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
 			e := &Executor{
-				client: github.NewClient(client),
+				api:    api,
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
@@ -332,20 +321,16 @@ func TestEmpty(t *testing.T) {
 			mock: func() {
 				gock.New("https://api.github.com").
 					Get("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
 					Reply(200).
 					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/bug").
-					MatchType("json").
 					Reply(204)
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/enhancement").
-					MatchType("json").
 					Reply(204)
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/question").
-					MatchType("json").
 					Reply(204)
 			},
 			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo"
@@ -363,7 +348,6 @@ Deleted label "question" for repository "tnagatomi/mock-repo"
 			mock: func() {
 				gock.New("https://api.github.com").
 					Get("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
 					Reply(200).
 					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
 			},
@@ -383,14 +367,13 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 				tt.mock()
 			}
 
-			client, err := api.NewHTTPClient(api.ClientOptions{})
+			api, err := api.NewAPI(http.DefaultClient)
 			if err != nil {
-				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Empty() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-
 			e := &Executor{
-				client: github.NewClient(client),
+				api:    api,
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}

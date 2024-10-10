@@ -23,7 +23,6 @@ package executor
 
 import (
 	"fmt"
-	"github.com/google/go-github/v59/github"
 	"github.com/tnagatomi/gh-fuda/api"
 	"github.com/tnagatomi/gh-fuda/option"
 	"github.com/tnagatomi/gh-fuda/parser"
@@ -34,14 +33,19 @@ import (
 
 // Executor composites github.Client and has dry-run option
 type Executor struct {
-	client *github.Client
+	api    *api.API
 	dryRun bool
 }
 
 // NewExecutor returns new Executor
 func NewExecutor(client *http.Client, dryrun bool) (*Executor, error) {
+	api, err := api.NewAPI(client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize API client: %v", err)
+	}
+
 	return &Executor{
-		client: github.NewClient(client),
+		api:    api,
 		dryRun: dryrun,
 	}, nil
 }
@@ -64,7 +68,7 @@ func (e *Executor) Create(out io.Writer, repoOption string, labelOption string) 
 				continue
 			}
 
-			err = api.CreateLabel(e.client, label, repo)
+			err = e.api.CreateLabel(label, repo)
 			if err != nil {
 				fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
 				continue
@@ -92,7 +96,7 @@ func (e *Executor) Delete(out io.Writer, repoOption string, labelOption string) 
 				continue
 			}
 
-			err = api.DeleteLabel(e.client, label, repo)
+			err = e.api.DeleteLabel(label, repo)
 			if err != nil {
 				fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", label, repo, err)
 				continue
@@ -136,7 +140,7 @@ func (e *Executor) Sync(out io.Writer, repoOption string, labelOption string) er
 				continue
 			}
 
-			err = api.CreateLabel(e.client, label, repo)
+			err = e.api.CreateLabel(label, repo)
 			if err != nil {
 				fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
 				continue
@@ -145,30 +149,6 @@ func (e *Executor) Sync(out io.Writer, repoOption string, labelOption string) er
 		}
 	}
 
-	return nil
-}
-
-func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) error {
-	for _, repo := range repos {
-		labels, err := api.ListLabels(e.client, repo)
-		if err != nil {
-			return fmt.Errorf("failed to list labels: %v", err)
-		}
-
-		for _, label := range labels {
-			if e.dryRun {
-				fmt.Fprintf(out, "Would delete label %q for repository %q\n", label, repo)
-				continue
-			}
-
-			err = api.DeleteLabel(e.client, label, repo)
-			if err != nil {
-				return fmt.Errorf("failed to delete label %q for repository %q: %v\n", label, repo, err)
-			} else {
-				fmt.Fprintf(out, "Deleted label %q for repository %q\n", label, repo)
-			}
-		}
-	}
 	return nil
 }
 
@@ -184,5 +164,29 @@ func (e *Executor) Empty(out io.Writer, repoOption string) error {
 		return fmt.Errorf("failed to empty labels: %v", err)
 	}
 
+	return nil
+}
+
+func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) error {
+	for _, repo := range repos {
+		labels, err := e.api.ListLabels(repo)
+		if err != nil {
+			return fmt.Errorf("failed to list labels: %v", err)
+		}
+
+		for _, label := range labels {
+			if e.dryRun {
+				fmt.Fprintf(out, "Would delete label %q for repository %q\n", label, repo)
+				continue
+			}
+
+			err = e.api.DeleteLabel(label, repo)
+			if err != nil {
+				return fmt.Errorf("failed to delete label %q for repository %q: %v\n", label, repo, err)
+			} else {
+				fmt.Fprintf(out, "Deleted label %q for repository %q\n", label, repo)
+			}
+		}
+	}
 	return nil
 }

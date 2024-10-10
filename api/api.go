@@ -26,17 +26,31 @@ import (
 	"fmt"
 	"github.com/google/go-github/v59/github"
 	"github.com/tnagatomi/gh-fuda/option"
+	"net/http"
 	"strings"
 )
 
+// API is a wrapper around the GitHub client
+type API struct {
+	client *github.Client
+}
+
+// NewAPI returns new API
+func NewAPI(client *http.Client) (*API, error) {
+	return &API{
+		client: github.NewClient(client),
+	}, nil
+}
+
 // CreateLabel creates a label in the repository
-func CreateLabel(client *github.Client, label option.Label, repo option.Repo) error {
+func (a *API) CreateLabel(label option.Label, repo option.Repo) error {
 	githubLabel := &github.Label{
 		Name:        github.String(label.Name),
 		Description: github.String(label.Description),
 		Color:       github.String(label.Color),
 	}
-	_, _, err := client.Issues.CreateLabel(context.Background(), repo.Owner, repo.Repo, githubLabel)
+
+	_, _, err := a.client.Issues.CreateLabel(context.Background(), repo.Owner, repo.Repo, githubLabel)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "already_exists") {
@@ -49,8 +63,8 @@ func CreateLabel(client *github.Client, label option.Label, repo option.Repo) er
 }
 
 // DeleteLabel deletes a label in the repository
-func DeleteLabel(client *github.Client, label string, repo option.Repo) error {
-	_, err := client.Issues.DeleteLabel(context.Background(), repo.Owner, repo.Repo, label)
+func (a *API) DeleteLabel(label string, repo option.Repo) error {
+	_, err := a.client.Issues.DeleteLabel(context.Background(), repo.Owner, repo.Repo, label)
 
 	if err != nil {
 		return err
@@ -60,8 +74,8 @@ func DeleteLabel(client *github.Client, label string, repo option.Repo) error {
 }
 
 // ListLabels gets all label names in the repository
-func ListLabels(client *github.Client, repo option.Repo) ([]string, error) {
-	labels, _, err := client.Issues.ListLabels(context.Background(), repo.Owner, repo.Repo, nil)
+func (a *API) ListLabels(repo option.Repo) ([]string, error) {
+	labels, _, err := a.client.Issues.ListLabels(context.Background(), repo.Owner, repo.Repo, nil)
 
 	if err != nil {
 		return nil, err

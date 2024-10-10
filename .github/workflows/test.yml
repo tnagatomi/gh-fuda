@@ -16,7 +16,6 @@ jobs:
         run: go test ./...
   test-windows:
     name: Test on Windows
-    needs: test-ubuntu
     runs-on: windows-latest
     steps:
       - name: Checkout code
@@ -29,7 +28,6 @@ jobs:
         run: go test ./...
   test-macos:
     name: Test on macOS
-    needs: test-windows
     runs-on: macos-latest
     steps:
       - name: Checkout code

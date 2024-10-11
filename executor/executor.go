@@ -28,6 +28,7 @@ import (
 	"github.com/tnagatomi/gh-fuda/parser"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -43,6 +44,9 @@ func NewExecutor(client *http.Client, dryrun bool) (*Executor, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize API client: %v", err)
 	}
+
+	repo, err := parser.Repo("owner/repo")
+	fmt.Fprint(os.Stdout, repo)
 
 	return &Executor{
 		api:    api,

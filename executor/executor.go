@@ -85,9 +85,6 @@ func (e *Executor) Delete(out io.Writer, repoOption string, labelOption string) 
 	labels := strings.Split(labelOption, ",")
 
 	repos, err := parser.Repo(repoOption)
-	if err != nil {
-		return fmt.Errorf("failed to parse repo option: %v", err)
-	}
 
 	for _, repo := range repos {
 		for _, label := range labels {

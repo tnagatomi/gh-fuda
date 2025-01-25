@@ -22,7 +22,7 @@ func TestCreate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "create labels for single repository",
+			name:   "single repository",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -55,7 +55,7 @@ Created label "question" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "create labels for multiple repository",
+			name:   "multiple repository",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
@@ -109,7 +109,7 @@ Created label "question" for repository "tnagatomi/mock-repo-2"
 			wantErr: false,
 		},
 		{
-			name:   "create labels dry-run",
+			name:   "dry-run",
 			dryrun: true,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -171,7 +171,7 @@ func TestDelete(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "delete labels for single repository",
+			name:   "single repository",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -195,7 +195,7 @@ Deleted label "question" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "delete labels for multiple repositories",
+			name:   "multiple repositories",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
@@ -231,7 +231,7 @@ Deleted label "question" for repository "tnagatomi/mock-repo-2"
 			wantErr: false,
 		},
 		{
-			name:   "delete labels dry-run",
+			name:   "dry-run",
 			dryrun: true,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -292,7 +292,7 @@ func TestSync(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "sync labels",
+			name:   "single repository",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -336,7 +336,7 @@ Created label "enhancement" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "sync labels dry-run",
+			name:   "dry-run",
 			dryrun: true,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -403,7 +403,7 @@ func TestEmpty(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "empty labels",
+			name:   "single repository",
 			dryrun: false,
 			args: args{
 				repoOption: "tnagatomi/mock-repo",
@@ -430,7 +430,7 @@ Deleted label "question" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "empty labels dry-run",
+			name:   "dry-run",
 			dryrun: true,
 			args: args{
 				repoOption: "tnagatomi/mock-repo",

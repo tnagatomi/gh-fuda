@@ -171,7 +171,7 @@ func TestDelete(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "delete labels",
+			name:   "delete labels for single repository",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -191,6 +191,42 @@ func TestDelete(t *testing.T) {
 			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo"
 Deleted label "enhancement" for repository "tnagatomi/mock-repo"
 Deleted label "question" for repository "tnagatomi/mock-repo"
+`,
+			wantErr: false,
+		},
+		{
+			name:   "delete labels for multiple repositories",
+			dryrun: false,
+			args: args{
+				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
+				labelOption: "bug,enhancement,question",
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/bug").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/enhancement").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/question").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/bug").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/enhancement").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/question").
+					Reply(204)
+			},
+			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo-1"
+Deleted label "enhancement" for repository "tnagatomi/mock-repo-1"
+Deleted label "question" for repository "tnagatomi/mock-repo-1"
+Deleted label "bug" for repository "tnagatomi/mock-repo-2"
+Deleted label "enhancement" for repository "tnagatomi/mock-repo-2"
+Deleted label "question" for repository "tnagatomi/mock-repo-2"
 `,
 			wantErr: false,
 		},

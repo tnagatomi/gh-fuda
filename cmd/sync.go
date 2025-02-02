@@ -35,7 +35,7 @@ import (
 func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 	var syncCmd = &cobra.Command{
 		Use:   "sync",
-		Short: "Sync labels to the specified ones",
+		Short: "Sync the labels in the specified repositories with the specified labels",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := api.NewHTTPClient(api.ClientOptions{})
 			if err != nil {

@@ -22,7 +22,7 @@ func TestCreate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "create labels",
+			name:   "single repository",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -55,7 +55,61 @@ Created label "question" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "create labels dry-run",
+			name:   "multiple repository",
+			dryrun: false,
+			args: args{
+				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
+				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement,question:0000ff:This is a question",
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-1/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
+					Reply(201).
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-1/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
+					Reply(201).
+					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-1/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"}).
+					Reply(201).
+					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"})
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-2/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
+					Reply(201).
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-2/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
+					Reply(201).
+					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-2/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"}).
+					Reply(201).
+					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"})
+			},
+			wantOut: `Created label "bug" for repository "tnagatomi/mock-repo-1"
+Created label "enhancement" for repository "tnagatomi/mock-repo-1"
+Created label "question" for repository "tnagatomi/mock-repo-1"
+Created label "bug" for repository "tnagatomi/mock-repo-2"
+Created label "enhancement" for repository "tnagatomi/mock-repo-2"
+Created label "question" for repository "tnagatomi/mock-repo-2"
+`,
+			wantErr: false,
+		},
+		{
+			name:   "dry-run",
 			dryrun: true,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -117,7 +171,7 @@ func TestDelete(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "delete labels",
+			name:   "single repository",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -141,7 +195,43 @@ Deleted label "question" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "delete labels dry-run",
+			name:   "multiple repositories",
+			dryrun: false,
+			args: args{
+				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
+				labelOption: "bug,enhancement,question",
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/bug").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/enhancement").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/question").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/bug").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/enhancement").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/question").
+					Reply(204)
+			},
+			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo-1"
+Deleted label "enhancement" for repository "tnagatomi/mock-repo-1"
+Deleted label "question" for repository "tnagatomi/mock-repo-1"
+Deleted label "bug" for repository "tnagatomi/mock-repo-2"
+Deleted label "enhancement" for repository "tnagatomi/mock-repo-2"
+Deleted label "question" for repository "tnagatomi/mock-repo-2"
+`,
+			wantErr: false,
+		},
+		{
+			name:   "dry-run",
 			dryrun: true,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -202,7 +292,7 @@ func TestSync(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "sync labels",
+			name:   "single repository",
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -246,7 +336,73 @@ Created label "enhancement" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "sync labels dry-run",
+			name:   "multiple repository",
+			dryrun: false,
+			args: args{
+				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
+				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement",
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Get("/repos/tnagatomi/mock-repo-1/labels").
+					Reply(200).
+					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/bug").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/enhancement").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/question").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Get("/repos/tnagatomi/mock-repo-2/labels").
+					Reply(200).
+					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}})
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/bug").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-1/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
+					Reply(201).
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-1/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
+					Reply(201).
+					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-2/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
+					Reply(201).
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo-2/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
+					Reply(201).
+					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
+			},
+			wantOut: `Emptying labels first
+Deleted label "bug" for repository "tnagatomi/mock-repo-1"
+Deleted label "enhancement" for repository "tnagatomi/mock-repo-1"
+Deleted label "question" for repository "tnagatomi/mock-repo-1"
+Deleted label "bug" for repository "tnagatomi/mock-repo-2"
+Creating labels
+Created label "bug" for repository "tnagatomi/mock-repo-1"
+Created label "enhancement" for repository "tnagatomi/mock-repo-1"
+Created label "bug" for repository "tnagatomi/mock-repo-2"
+Created label "enhancement" for repository "tnagatomi/mock-repo-2"
+`,
+			wantErr: false,
+		},
+		{
+			name:   "dry-run",
 			dryrun: true,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo",
@@ -313,7 +469,7 @@ func TestEmpty(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "empty labels",
+			name:   "single repository",
 			dryrun: false,
 			args: args{
 				repoOption: "tnagatomi/mock-repo",
@@ -340,7 +496,46 @@ Deleted label "question" for repository "tnagatomi/mock-repo"
 			wantErr: false,
 		},
 		{
-			name:   "empty labels dry-run",
+			name:   "multiple repository",
+			dryrun: false,
+			args: args{
+				repoOption: "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Get("/repos/tnagatomi/mock-repo-1/labels").
+					Reply(200).
+					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/bug").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/enhancement").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-1/labels/question").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Get("/repos/tnagatomi/mock-repo-2/labels").
+					Reply(200).
+					JSON([]map[string]string{{"name": "invalid", "description": "This doesn't seem right", "color": "e4e669"}, {"name": "help wanted", "description": "Extra attention is needed", "color": "008672"}})
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/invalid").
+					Reply(204)
+				gock.New("https://api.github.com").
+					Delete("/repos/tnagatomi/mock-repo-2/labels/help wanted").
+					Reply(204)
+			},
+			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo-1"
+Deleted label "enhancement" for repository "tnagatomi/mock-repo-1"
+Deleted label "question" for repository "tnagatomi/mock-repo-1"
+Deleted label "invalid" for repository "tnagatomi/mock-repo-2"
+Deleted label "help wanted" for repository "tnagatomi/mock-repo-2"
+`,
+			wantErr: false,
+		},
+		{
+			name:   "dry-run",
 			dryrun: true,
 			args: args{
 				repoOption: "tnagatomi/mock-repo",

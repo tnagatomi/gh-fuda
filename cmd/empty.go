@@ -35,7 +35,7 @@ import (
 func NewEmptyCmd(in io.Reader, out io.Writer) *cobra.Command {
 	var emptyCmd = &cobra.Command{
 		Use:   "empty",
-		Short: "Empties labels across multiple repositories",
+		Short: "Delete all labels from the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := api.NewHTTPClient(api.ClientOptions{})
 			if err != nil {

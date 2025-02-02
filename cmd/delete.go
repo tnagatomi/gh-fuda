@@ -35,7 +35,7 @@ import (
 func NewDeleteCmd(in io.Reader, out io.Writer) *cobra.Command {
 	var deleteCmd = &cobra.Command{
 		Use:   "delete",
-		Short: "Delete labels across multiple repositories",
+		Short: "Delete specified labels from the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := api.NewHTTPClient(api.ClientOptions{})
 			if err != nil {

@@ -34,7 +34,7 @@ import (
 func NewCreateCmd(out io.Writer) *cobra.Command {
 	var createCmd = &cobra.Command{
 		Use:   "create",
-		Short: "Create labels across multiple repositories",
+		Short: "Create specified labels to the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := api.NewHTTPClient(api.ClientOptions{})
 			if err != nil {

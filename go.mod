@@ -4,7 +4,7 @@ go 1.23
 
 require (
 	github.com/cli/go-gh/v2 v2.11.2
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v59 v59.0.0
 	github.com/h2non/gock v1.2.0
 	github.com/spf13/cobra v1.8.1

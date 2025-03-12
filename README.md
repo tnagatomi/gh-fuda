@@ -31,7 +31,7 @@ Create specified labels to the specified repositories.
 
 ##### Options
 
-- `-l`, `--label`: Specify the labels to create in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
+- `-l`, `--labels`: Specify the labels to create in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
 
 ##### Example
 
@@ -49,7 +49,7 @@ Delete specified labels from the specified repositories.
 
 ##### Options
 
-- `-l`, `--label`: Specify the labels to delete in the format of `'label1[,label2,...]'`
+- `-l`, `--labels`: Specify the labels to delete in the format of `'label1[,label2,...]'`
 - `--force`: Do not prompt for confirmation
 
 ##### Example
@@ -68,7 +68,7 @@ Sync the labels in the specified repositories with the specified labels.
 
 ##### Options
 
-- `-l`, `--label`: Specify the labels to set in the format ofSpecify the labels to set in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
+- `-l`, `--labels`: Specify the labels to set in the format ofSpecify the labels to set in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
 - `--force`: Do not prompt for confirmation
 
 ##### Example

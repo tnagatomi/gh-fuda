@@ -53,7 +53,7 @@ func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 					return fmt.Errorf("failed to confirm execution: %v", err)
 				}
 				if !confirmed {
-					fmt.Fprintf(out, "Canceled execution\n")
+					_, _ = fmt.Fprintf(out, "Canceled execution\n")
 					return nil
 				}
 			}

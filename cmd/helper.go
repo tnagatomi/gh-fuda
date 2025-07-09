@@ -29,7 +29,7 @@ import (
 
 // confirm asks user to really execute a command
 func confirm(in io.Reader, out io.Writer) (bool, error) {
-	fmt.Fprintf(out, "Are you sure you want to do this? (y/n): ")
+	_, _ = fmt.Fprintf(out, "Are you sure you want to do this? (y/n): ")
 
 	reader := bufio.NewReader(in)
 	s, err := reader.ReadString('\n')

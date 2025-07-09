@@ -35,7 +35,7 @@ func Label(input string) ([]option.Label, error) {
 	for _, label := range inputSplit {
 		parts := strings.Split(label, ":")
 
-		if !(len(parts) == 3 || len(parts) == 2) {
+		if len(parts) != 3 && len(parts) != 2 {
 			return nil, fmt.Errorf("invalid label format: %s", label)
 		}
 

@@ -30,6 +30,13 @@ import (
 	"strings"
 )
 
+// APIClient is a interface for the API client
+type APIClient interface {
+	CreateLabel(label option.Label, repo option.Repo) error
+	DeleteLabel(label string, repo option.Repo) error
+	ListLabels(repo option.Repo) ([]string, error)
+}
+
 // API is a wrapper around the GitHub client
 type API struct {
 	client *github.Client

@@ -2,10 +2,11 @@ package executor
 
 import (
 	"bytes"
-	"github.com/h2non/gock"
-	"github.com/tnagatomi/gh-fuda/api"
-	"net/http"
+	"fmt"
 	"testing"
+
+	"github.com/tnagatomi/gh-fuda/internal/mock"
+	"github.com/tnagatomi/gh-fuda/option"
 )
 
 func TestCreate(t *testing.T) {
@@ -17,7 +18,11 @@ func TestCreate(t *testing.T) {
 		name    string
 		dryrun  bool
 		args    args
-		mock    func()
+		mock    *mock.MockAPI
+		wantCall []struct {
+			Label option.Label
+			Repo  option.Repo
+		}
 		wantOut string
 		wantErr bool
 	}{
@@ -28,76 +33,36 @@ func TestCreate(t *testing.T) {
 				repoOption:  "tnagatomi/mock-repo",
 				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement,question:0000ff:This is a question",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
-					Reply(201).
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
-					Reply(201).
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"}).
-					Reply(201).
-					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"})
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Created label "bug" for repository "tnagatomi/mock-repo"
 Created label "enhancement" for repository "tnagatomi/mock-repo"
 Created label "question" for repository "tnagatomi/mock-repo"
 `,
 			wantErr: false,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "This is a bug", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: option.Label{Name: "enhancement", Description: "This is an enhancement", Color: "00ff00"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: option.Label{Name: "question", Description: "This is a question", Color: "0000ff"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
 		},
 		{
-			name:   "multiple repository",
+			name:   "multiple repository", 
 			dryrun: false,
 			args: args{
 				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
 				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement,question:0000ff:This is a question",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-1/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
-					Reply(201).
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-1/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
-					Reply(201).
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-1/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"}).
-					Reply(201).
-					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-2/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
-					Reply(201).
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-2/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
-					Reply(201).
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-2/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"}).
-					Reply(201).
-					JSON(map[string]string{"name": "question", "description": "This is a question", "color": "0000ff"})
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Created label "bug" for repository "tnagatomi/mock-repo-1"
 Created label "enhancement" for repository "tnagatomi/mock-repo-1"
@@ -107,6 +72,17 @@ Created label "enhancement" for repository "tnagatomi/mock-repo-2"
 Created label "question" for repository "tnagatomi/mock-repo-2"
 `,
 			wantErr: false,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "This is a bug", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: option.Label{Name: "enhancement", Description: "This is an enhancement", Color: "00ff00"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: option.Label{Name: "question", Description: "This is a question", Color: "0000ff"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: option.Label{Name: "bug", Description: "This is a bug", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+				{Label: option.Label{Name: "enhancement", Description: "This is an enhancement", Color: "00ff00"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+				{Label: option.Label{Name: "question", Description: "This is a question", Color: "0000ff"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+			},
 		},
 		{
 			name:   "dry-run",
@@ -115,33 +91,31 @@ Created label "question" for repository "tnagatomi/mock-repo-2"
 				repoOption:  "tnagatomi/mock-repo",
 				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement,question:0000ff:This is a question",
 			},
-			mock: func() {},
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return nil
+				},
+			},
 			wantOut: `Would create label "bug" for repository "tnagatomi/mock-repo"
 Would create label "enhancement" for repository "tnagatomi/mock-repo"
 Would create label "question" for repository "tnagatomi/mock-repo"
 `,
 			wantErr: false,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer gock.Off()
-
-			if tt.mock != nil {
-				tt.mock()
-			}
-
-			api, err := api.NewAPI(http.DefaultClient)
-			if err != nil {
-				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			e := &Executor{
-				api:    api,
+				api:    tt.mock,
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err = e.Create(out, tt.args.repoOption, tt.args.labelOption)
+			err := e.Create(out, tt.args.repoOption, tt.args.labelOption)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -150,8 +124,13 @@ Would create label "question" for repository "tnagatomi/mock-repo"
 			if gotOut := out.String(); gotOut != tt.wantOut {
 				t.Errorf("Create() gotOut = %v, want %v", gotOut, tt.wantOut)
 			}
-			if !gock.IsDone() {
-				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			if len(tt.wantCall) != len(tt.mock.CreateLabelCalls) {
+				t.Errorf("Create() wantCall = %v, got %v", tt.wantCall, tt.mock.CreateLabelCalls)
+			}
+			for i, call := range tt.mock.CreateLabelCalls {
+				if call.Label != tt.wantCall[i].Label || call.Repo != tt.wantCall[i].Repo {
+					t.Errorf("Create() wantCall = %v, got %v", tt.wantCall, tt.mock.CreateLabelCalls)
+				}
 			}
 		})
 	}
@@ -166,9 +145,13 @@ func TestDelete(t *testing.T) {
 		name    string
 		dryrun  bool
 		args    args
-		mock    func()
+		mock    *mock.MockAPI
 		wantOut string
 		wantErr bool
+		wantCall []struct {
+			Label string
+			Repo  option.Repo
+		}
 	}{
 		{
 			name:   "single repository",
@@ -177,22 +160,24 @@ func TestDelete(t *testing.T) {
 				repoOption:  "tnagatomi/mock-repo",
 				labelOption: "bug,enhancement,question",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/bug").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/enhancement").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/question").
-					Reply(204)
+			mock: &mock.MockAPI{
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo"
 Deleted label "enhancement" for repository "tnagatomi/mock-repo"
 Deleted label "question" for repository "tnagatomi/mock-repo"
 `,
 			wantErr: false,
+			wantCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{
+				{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: "enhancement", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: "question", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
 		},
 		{
 			name:   "multiple repositories",
@@ -201,25 +186,10 @@ Deleted label "question" for repository "tnagatomi/mock-repo"
 				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
 				labelOption: "bug,enhancement,question",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/bug").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/enhancement").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/question").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-2/labels/bug").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-2/labels/enhancement").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-2/labels/question").
-					Reply(204)
+			mock: &mock.MockAPI{
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo-1"
 Deleted label "enhancement" for repository "tnagatomi/mock-repo-1"
@@ -229,6 +199,17 @@ Deleted label "enhancement" for repository "tnagatomi/mock-repo-2"
 Deleted label "question" for repository "tnagatomi/mock-repo-2"
 `,
 			wantErr: false,
+			wantCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{
+				{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: "enhancement", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: "question", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+				{Label: "enhancement", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+				{Label: "question", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+			},
 		},
 		{
 			name:   "dry-run",
@@ -237,33 +218,31 @@ Deleted label "question" for repository "tnagatomi/mock-repo-2"
 				repoOption:  "tnagatomi/mock-repo",
 				labelOption: "bug,enhancement,question",
 			},
-			mock: func() {},
+			mock: &mock.MockAPI{
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
+			},
 			wantOut: `Would delete label "bug" for repository "tnagatomi/mock-repo"
 Would delete label "enhancement" for repository "tnagatomi/mock-repo"
 Would delete label "question" for repository "tnagatomi/mock-repo"
 `,
 			wantErr: false,
+			wantCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer gock.Off()
-
-			if tt.mock != nil {
-				tt.mock()
-			}
-
-			api, err := api.NewAPI(http.DefaultClient)
-			if err != nil {
-				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			e := &Executor{
-				api:    api,
+				api:    tt.mock,
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err = e.Delete(out, tt.args.repoOption, tt.args.labelOption)
+			err := e.Delete(out, tt.args.repoOption, tt.args.labelOption)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -271,8 +250,13 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 			if gotOut := out.String(); gotOut != tt.wantOut {
 				t.Errorf("Delete() gotOut = %v, want %v", gotOut, tt.wantOut)
 			}
-			if !gock.IsDone() {
-				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			if len(tt.wantCall) != len(tt.mock.DeleteLabelCalls) {
+				t.Errorf("Delete() wantCall = %v, got %v", tt.wantCall, tt.mock.DeleteLabelCalls)
+			}
+			for i, call := range tt.mock.DeleteLabelCalls {
+				if call.Label != tt.wantCall[i].Label || call.Repo != tt.wantCall[i].Repo {
+					t.Errorf("Delete() wantCall = %v, got %v", tt.wantCall, tt.mock.DeleteLabelCalls)
+				}
 			}
 		})
 	}
@@ -287,9 +271,18 @@ func TestSync(t *testing.T) {
 		name    string
 		dryrun  bool
 		args    args
-		mock    func()
+		mock    *mock.MockAPI
 		wantOut string
 		wantErr bool
+		wantListCall []option.Repo
+		wantCreateCall []struct {
+			Label option.Label
+			Repo  option.Repo
+		}
+		wantDeleteCall []struct {
+			Label string
+			Repo  option.Repo
+		}
 	}{
 		{
 			name:   "single repository",
@@ -298,32 +291,13 @@ func TestSync(t *testing.T) {
 				repoOption:  "tnagatomi/mock-repo",
 				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Get("/repos/tnagatomi/mock-repo/labels").
-					Reply(200).
-					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/bug").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/enhancement").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/question").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
-					Reply(201).
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
-					Reply(201).
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+					return []string{"bug", "enhancement", "question"}, nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Emptying labels first
 Deleted label "bug" for repository "tnagatomi/mock-repo"
@@ -334,6 +308,24 @@ Created label "bug" for repository "tnagatomi/mock-repo"
 Created label "enhancement" for repository "tnagatomi/mock-repo"
 `,
 			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo"},
+			},
+			wantCreateCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "This is a bug", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: option.Label{Name: "enhancement", Description: "This is an enhancement", Color: "00ff00"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+			wantDeleteCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{
+				{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: "enhancement", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: "question", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
 		},
 		{
 			name:   "multiple repository",
@@ -342,51 +334,21 @@ Created label "enhancement" for repository "tnagatomi/mock-repo"
 				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
 				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Get("/repos/tnagatomi/mock-repo-1/labels").
-					Reply(200).
-					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/bug").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/enhancement").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/question").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Get("/repos/tnagatomi/mock-repo-2/labels").
-					Reply(200).
-					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}})
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-2/labels/bug").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-1/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
-					Reply(201).
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-1/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
-					Reply(201).
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-2/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
-					Reply(201).
-					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
-				gock.New("https://api.github.com").
-					Post("/repos/tnagatomi/mock-repo-2/labels").
-					MatchType("json").
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}).
-					Reply(201).
-					JSON(map[string]string{"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"})
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return nil
+				},
+				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+					if repo.Owner == "tnagatomi" && repo.Repo == "mock-repo-1" {
+						return []string{"bug", "enhancement", "question"}, nil
+					} else if repo.Owner == "tnagatomi" && repo.Repo == "mock-repo-2" {
+						return []string{"bug"}, nil
+					}
+					return nil, fmt.Errorf("unexpected repository: %v", repo)
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Emptying labels first
 Deleted label "bug" for repository "tnagatomi/mock-repo-1"
@@ -400,7 +362,28 @@ Created label "bug" for repository "tnagatomi/mock-repo-2"
 Created label "enhancement" for repository "tnagatomi/mock-repo-2"
 `,
 			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo-1"},
+				{Owner: "tnagatomi", Repo: "mock-repo-2"},
+			},
+		wantCreateCall: []struct {
+			Label option.Label
+			Repo  option.Repo
+		}{
+			{Label: option.Label{Name: "bug", Description: "This is a bug", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+			{Label: option.Label{Name: "enhancement", Description: "This is an enhancement", Color: "00ff00"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+			{Label: option.Label{Name: "bug", Description: "This is a bug", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+			{Label: option.Label{Name: "enhancement", Description: "This is an enhancement", Color: "00ff00"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
 		},
+		wantDeleteCall: []struct {
+			Label string
+			Repo  option.Repo
+		}{
+			{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+			{Label: "enhancement", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+			{Label: "question", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+			{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+		}},
 		{
 			name:   "dry-run",
 			dryrun: true,
@@ -408,11 +391,16 @@ Created label "enhancement" for repository "tnagatomi/mock-repo-2"
 				repoOption:  "tnagatomi/mock-repo",
 				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Get("/repos/tnagatomi/mock-repo/labels").
-					Reply(200).
-					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return nil
+				},
+				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+					return []string{"bug", "enhancement", "question"}, nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Would delete label "bug" for repository "tnagatomi/mock-repo"
 Would delete label "enhancement" for repository "tnagatomi/mock-repo"
@@ -421,27 +409,28 @@ Would create label "bug" for repository "tnagatomi/mock-repo"
 Would create label "enhancement" for repository "tnagatomi/mock-repo"
 `,
 			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo"},
+			},
+			wantCreateCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{},
+			wantDeleteCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer gock.Off()
-
-			if tt.mock != nil {
-				tt.mock()
-			}
-
-			api, err := api.NewAPI(http.DefaultClient)
-			if err != nil {
-				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			e := &Executor{
-				api:    api,
+				api:    tt.mock,
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err = e.Sync(out, tt.args.repoOption, tt.args.labelOption)
+			err := e.Sync(out, tt.args.repoOption, tt.args.labelOption)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -449,8 +438,29 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo"
 			if gotOut := out.String(); gotOut != tt.wantOut {
 				t.Errorf("Sync() gotOut = %v, want %v", gotOut, tt.wantOut)
 			}
-			if !gock.IsDone() {
-				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
+				t.Errorf("Sync() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
+			}
+			for i, call := range tt.mock.ListLabelsCalls {
+				if call.Repo != tt.wantListCall[i] {
+					t.Errorf("Sync() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
+				}
+			}
+			if len(tt.wantCreateCall) != len(tt.mock.CreateLabelCalls) {
+				t.Errorf("Sync() wantCreateCall = %v, got %v", tt.wantCreateCall, tt.mock.CreateLabelCalls)
+			}
+			for i, call := range tt.mock.CreateLabelCalls {
+				if call.Label != tt.wantCreateCall[i].Label || call.Repo != tt.wantCreateCall[i].Repo {
+					t.Errorf("Sync() wantCreateCall = %v, got %v", tt.wantCreateCall, tt.mock.CreateLabelCalls)
+				}
+			}
+			if len(tt.wantDeleteCall) != len(tt.mock.DeleteLabelCalls) {
+				t.Errorf("Sync() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
+			}
+			for i, call := range tt.mock.DeleteLabelCalls {
+				if call.Label != tt.wantDeleteCall[i].Label || call.Repo != tt.wantDeleteCall[i].Repo {
+					t.Errorf("Sync() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
+				}
 			}
 		})
 	}
@@ -464,9 +474,14 @@ func TestEmpty(t *testing.T) {
 		name    string
 		dryrun  bool
 		args    args
-		mock    func()
+		mock    *mock.MockAPI
 		wantOut string
 		wantErr bool
+		wantListCall []option.Repo
+		wantDeleteCall []struct {
+			Label string
+			Repo  option.Repo
+		}	
 	}{
 		{
 			name:   "single repository",
@@ -474,26 +489,30 @@ func TestEmpty(t *testing.T) {
 			args: args{
 				repoOption: "tnagatomi/mock-repo",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Get("/repos/tnagatomi/mock-repo/labels").
-					Reply(200).
-					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/bug").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/enhancement").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo/labels/question").
-					Reply(204)
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+					return []string{"bug", "enhancement", "question"}, nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo"
 Deleted label "enhancement" for repository "tnagatomi/mock-repo"
 Deleted label "question" for repository "tnagatomi/mock-repo"
 `,
 			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo"},
+			},
+			wantDeleteCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{
+				{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: "enhancement", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: "question", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
 		},
 		{
 			name:   "multiple repository",
@@ -501,30 +520,18 @@ Deleted label "question" for repository "tnagatomi/mock-repo"
 			args: args{
 				repoOption: "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Get("/repos/tnagatomi/mock-repo-1/labels").
-					Reply(200).
-					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/bug").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/enhancement").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-1/labels/question").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Get("/repos/tnagatomi/mock-repo-2/labels").
-					Reply(200).
-					JSON([]map[string]string{{"name": "invalid", "description": "This doesn't seem right", "color": "e4e669"}, {"name": "help wanted", "description": "Extra attention is needed", "color": "008672"}})
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-2/labels/invalid").
-					Reply(204)
-				gock.New("https://api.github.com").
-					Delete("/repos/tnagatomi/mock-repo-2/labels/help wanted").
-					Reply(204)
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+					if repo.Owner == "tnagatomi" && repo.Repo == "mock-repo-1" {
+						return []string{"bug", "enhancement", "question"}, nil
+					} else if repo.Owner == "tnagatomi" && repo.Repo == "mock-repo-2" {
+						return []string{"invalid", "help wanted"}, nil
+					}
+					return nil, fmt.Errorf("unexpected repository: %v", repo)
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo-1"
 Deleted label "enhancement" for repository "tnagatomi/mock-repo-1"
@@ -533,6 +540,20 @@ Deleted label "invalid" for repository "tnagatomi/mock-repo-2"
 Deleted label "help wanted" for repository "tnagatomi/mock-repo-2"
 `,
 			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo-1"},
+				{Owner: "tnagatomi", Repo: "mock-repo-2"},
+			},
+			wantDeleteCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{
+				{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: "enhancement", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: "question", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-1"}},
+				{Label: "invalid", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+				{Label: "help wanted", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo-2"}},
+			},
 		},
 		{
 			name:   "dry-run",
@@ -540,39 +561,37 @@ Deleted label "help wanted" for repository "tnagatomi/mock-repo-2"
 			args: args{
 				repoOption: "tnagatomi/mock-repo",
 			},
-			mock: func() {
-				gock.New("https://api.github.com").
-					Get("/repos/tnagatomi/mock-repo/labels").
-					Reply(200).
-					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+					return []string{"bug", "enhancement", "question"}, nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
 			},
 			wantOut: `Would delete label "bug" for repository "tnagatomi/mock-repo"
 Would delete label "enhancement" for repository "tnagatomi/mock-repo"
 Would delete label "question" for repository "tnagatomi/mock-repo"
 `,
 			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo"},
+			},
+			wantDeleteCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer gock.Off()
-
-			if tt.mock != nil {
-				tt.mock()
-			}
-
-			api, err := api.NewAPI(http.DefaultClient)
-			if err != nil {
-				t.Errorf("Empty() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			e := &Executor{
-				api:    api,
+				api:    tt.mock,
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err = e.Empty(out, tt.args.repoOption)
+			err := e.Empty(out, tt.args.repoOption)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -580,8 +599,21 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 			if gotOut := out.String(); gotOut != tt.wantOut {
 				t.Errorf("Sync() gotOut = %v, want %v", gotOut, tt.wantOut)
 			}
-			if !gock.IsDone() {
-				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
+				t.Errorf("Empty() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
+			}
+			for i, call := range tt.mock.ListLabelsCalls {
+				if call.Repo != tt.wantListCall[i] {
+					t.Errorf("Empty() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
+				}
+			}
+			if len(tt.wantDeleteCall) != len(tt.mock.DeleteLabelCalls) {
+				t.Errorf("Empty() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
+			}
+			for i, call := range tt.mock.DeleteLabelCalls {
+				if call.Label != tt.wantDeleteCall[i].Label || call.Repo != tt.wantDeleteCall[i].Repo {
+					t.Errorf("Empty() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
+				}
 			}
 		})
 	}

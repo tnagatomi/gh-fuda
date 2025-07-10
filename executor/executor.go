@@ -34,7 +34,7 @@ import (
 
 // Executor composites github.Client and has dry-run option
 type Executor struct {
-	api    *api.API
+	api    api.APIClient
 	dryRun bool
 }
 

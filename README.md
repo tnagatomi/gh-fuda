@@ -6,8 +6,8 @@
 
 Install as a [gh](https://cli.github.com/) extension (ref. [gh manual of gh extension install](https://cli.github.com/manual/gh_extension_install)).
 
-```console
-$ gh extension install tnagatomi/gh-fuda
+```bash
+gh extension install tnagatomi/gh-fuda
 ```
 
 ## Usage
@@ -23,8 +23,8 @@ Login to GitHub with `gh auth login` (ref. [gh manual of gh auth login](https://
 
 #### Create Labels
 
-```console
-$ gh fuda create
+```bash
+gh fuda create
 ```
 
 Create specified labels to the specified repositories.
@@ -35,14 +35,14 @@ Create specified labels to the specified repositories.
 
 ##### Example
 
-```console
-$ gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
+```bash
+gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
 ```
 
 #### Delete Labels
 
-```console
-$ gh fuda delete
+```bash
+gh fuda delete
 ```
 
 Delete specified labels from the specified repositories.
@@ -54,14 +54,14 @@ Delete specified labels from the specified repositories.
 
 ##### Example
 
-```console
-$ gh fuda delete -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1,label2,label3"
+```bash
+gh fuda delete -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1,label2,label3"
 ```
 
 #### Sync Labels
 
-```console
-$ gh fuda sync
+```bash
+gh fuda sync
 ```
 
 Sync the labels in the specified repositories with the specified labels.
@@ -73,14 +73,14 @@ Sync the labels in the specified repositories with the specified labels.
 
 ##### Example
 
-```console
-$ gh fuda sync -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
+```bash
+gh fuda sync -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
 ```
 
 #### Empty Labels
 
-```console
-$ gh fuda empty
+```bash
+gh fuda empty
 ```
 
 Delete all labels from the specified repositories.
@@ -91,6 +91,6 @@ Delete all labels from the specified repositories.
 
 ##### Example
 
-```console
-$ gh fuda empty -R "owner1/repo1,owner1/repo2,owner2/repo1"
+```bash
+gh fuda empty -R "owner1/repo1,owner1/repo2,owner2/repo1"
 ```

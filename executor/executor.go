@@ -62,7 +62,14 @@ func (e *Executor) Create(out io.Writer, repoOption string, labelOption string) 
 		return fmt.Errorf("failed to parse repo option: %v", err)
 	}
 
+	er := NewExecutionResult()
+
 	for _, repo := range repos {
+		repoResult := &RepoResult{
+			Repo:   repo.String(),
+			Errors: nil,
+		}
+
 		for _, label := range labels {
 			if e.dryRun {
 				_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
@@ -71,14 +78,23 @@ func (e *Executor) Create(out io.Writer, repoOption string, labelOption string) 
 
 			err = e.api.CreateLabel(label, repo)
 			if err != nil {
+				repoResult.Errors = append(repoResult.Errors, err)
 				_, _ = fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
 				continue
 			}
 			_, _ = fmt.Fprintf(out, "Created label %q for repository %q\n", label, repo)
 		}
+
+		if !e.dryRun {
+			er.AddRepoResult(repoResult)
+		}
 	}
 
-	return nil
+	if !e.dryRun {
+		_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+	}
+
+	return er.Err()
 }
 
 // Delete deletes labels across multiple repositories
@@ -90,7 +106,14 @@ func (e *Executor) Delete(out io.Writer, repoOption string, labelOption string) 
 		return fmt.Errorf("failed to parse repo option: %v", err)
 	}
 
+	er := NewExecutionResult()
+
 	for _, repo := range repos {
+		repoResult := &RepoResult{
+			Repo:   repo.String(),
+			Errors: nil,
+		}
+
 		for _, label := range labels {
 			if e.dryRun {
 				_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", label, repo)
@@ -99,14 +122,23 @@ func (e *Executor) Delete(out io.Writer, repoOption string, labelOption string) 
 
 			err = e.api.DeleteLabel(label, repo)
 			if err != nil {
+				repoResult.Errors = append(repoResult.Errors, err)
 				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", label, repo, err)
 				continue
 			}
 			_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", label, repo)
 		}
+
+		if !e.dryRun {
+			er.AddRepoResult(repoResult)
+		}
 	}
 
-	return nil
+	if !e.dryRun {
+		_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+	}
+
+	return er.Err()
 }
 
 // Sync sync labels across multiple repositories
@@ -121,36 +153,87 @@ func (e *Executor) Sync(out io.Writer, repoOption string, labelOption string) er
 		return fmt.Errorf("failed to parse label option: %v", err)
 	}
 
-	if !e.dryRun {
-		_, _ = fmt.Fprintf(out, "Emptying labels first\n")
-	}
-
-	err = e.emptyLabels(out, repos)
-	if err != nil {
-		return fmt.Errorf("failed to empty labels: %v", err)
-	}
-
-	if !e.dryRun {
-		_, _ = fmt.Fprintf(out, "Creating labels\n")
-	}
+	er := NewExecutionResult()
 
 	for _, repo := range repos {
-		for _, label := range labels {
-			if e.dryRun {
-				_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
+		repoStr := repo.String()
+		repoResult := &RepoResult{
+			Repo:   repoStr,
+			Errors: nil,
+		}
+
+		existingLabels, err := e.api.ListLabels(repo)
+		if err != nil {
+			repoResult.Errors = append(repoResult.Errors, err)
+			_, _ = fmt.Fprintf(out, "Failed to list labels for repository %q: %v\n", repo, err)
+			if !e.dryRun {
+				er.AddRepoResult(repoResult)
+			}
+			continue
+		}
+
+		// Delete labels not in the new set
+		for _, existing := range existingLabels {
+			if labelNameExists(existing, labels) {
 				continue
 			}
 
-			err = e.api.CreateLabel(label, repo)
-			if err != nil {
-				_, _ = fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
+			if e.dryRun {
+				_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", existing, repo)
 				continue
 			}
-			_, _ = fmt.Fprintf(out, "Created label %q for repository %q\n", label, repo)
+
+			err = e.api.DeleteLabel(existing, repo)
+			if err != nil {
+				repoResult.Errors = append(repoResult.Errors, err)
+				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", existing, repo, err)
+			} else {
+				_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", existing, repo)
+			}
+		}
+
+		// Create or update labels
+		for _, label := range labels {
+			if stringExists(label.Name, existingLabels) {
+				if e.dryRun {
+					_, _ = fmt.Fprintf(out, "Would update label %q for repository %q\n", label, repo)
+					continue
+				}
+
+				err = e.api.UpdateLabel(label, repo)
+				if err != nil {
+					repoResult.Errors = append(repoResult.Errors, err)
+					_, _ = fmt.Fprintf(out, "Failed to update label %q for repository %q: %v\n", label, repo, err)
+				} else {
+					_, _ = fmt.Fprintf(out, "Updated label %q for repository %q\n", label, repo)
+				}
+			} else {
+				// Create new label
+				if e.dryRun {
+					_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
+					continue
+				}
+
+				err = e.api.CreateLabel(label, repo)
+				if err != nil {
+					repoResult.Errors = append(repoResult.Errors, err)
+					_, _ = fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
+				} else {
+					_, _ = fmt.Fprintf(out, "Created label %q for repository %q\n", label, repo)
+				}
+			}
+		}
+
+		if !e.dryRun {
+			er.AddRepoResult(repoResult)
 		}
 	}
 
-	return nil
+	if !e.dryRun {
+		_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+	}
+
+	return er.Err()
 }
 
 // Empty empties labels across multiple repositories
@@ -160,19 +243,34 @@ func (e *Executor) Empty(out io.Writer, repoOption string) error {
 		return fmt.Errorf("failed to parse repo option: %v", err)
 	}
 
-	err = e.emptyLabels(out, repos)
-	if err != nil {
-		return fmt.Errorf("failed to empty labels: %v", err)
+	er := NewExecutionResult()
+
+	results := e.emptyLabels(out, repos)
+	if !e.dryRun {
+		for _, result := range results {
+			er.AddRepoResult(result)
+		}
+		_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
 	}
 
-	return nil
+	return er.Err()
 }
 
-func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) error {
+func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) []*RepoResult {
+	var results []*RepoResult
+
 	for _, repo := range repos {
+		repoResult := &RepoResult{
+			Repo:   repo.String(),
+			Errors: nil,
+		}
+
 		labels, err := e.api.ListLabels(repo)
 		if err != nil {
-			return fmt.Errorf("failed to list labels: %v", err)
+			repoResult.Errors = append(repoResult.Errors, err)
+			_, _ = fmt.Fprintf(out, "Failed to list labels for repository %q: %v\n", repo, err)
+			results = append(results, repoResult)
+			continue
 		}
 
 		for _, label := range labels {
@@ -183,11 +281,35 @@ func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) error {
 
 			err = e.api.DeleteLabel(label, repo)
 			if err != nil {
-				return fmt.Errorf("failed to delete label %q for repository %q: %v", label, repo, err)
+				repoResult.Errors = append(repoResult.Errors, err)
+				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", label, repo, err)
 			} else {
 				_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", label, repo)
 			}
 		}
+
+		results = append(results, repoResult)
 	}
-	return nil
+
+	return results
+}
+
+// labelNameExists checks if a label name exists in a slice of labels
+func labelNameExists(name string, labels []option.Label) bool {
+	for _, label := range labels {
+		if name == label.Name {
+			return true
+		}
+	}
+	return false
+}
+
+// stringExists checks if a string exists in a slice of strings
+func stringExists(target string, strings []string) bool {
+	for _, s := range strings {
+		if target == s {
+			return true
+		}
+	}
+	return false
 }

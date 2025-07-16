@@ -276,6 +276,92 @@ func TestDeleteLabel(t *testing.T) {
 	}
 }
 
+func TestUpdateLabel(t *testing.T) {
+	type args struct {
+		label option.Label
+		repo  option.Repo
+	}
+	tests := []struct {
+		name       string
+		args       args
+		mock       func()
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "success",
+			args: args{
+				label: option.Label{
+					Name:        "bug",
+					Description: "Updated bug description",
+					Color:       "d73a4a",
+				},
+				repo: option.Repo{
+					Owner: "tnagatomi",
+					Repo:  "mock-repo",
+				},
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Patch("/repos/tnagatomi/mock-repo/labels/bug").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "Updated bug description", "color": "d73a4a"}).
+					Reply(200).
+					JSON(map[string]string{"name": "bug", "description": "Updated bug description", "color": "d73a4a"})
+			},
+			wantErr: false,
+		},
+		{
+			name: "label not found",
+			args: args{
+				label: option.Label{
+					Name:        "nonexistent",
+					Description: "This label does not exist",
+					Color:       "ff0000",
+				},
+				repo: option.Repo{
+					Owner: "tnagatomi",
+					Repo:  "mock-repo",
+				},
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Patch("/repos/tnagatomi/mock-repo/labels/nonexistent").
+					Reply(404).
+					JSON(map[string]string{"message": "Not Found"})
+			},
+			wantErr:    true,
+			wantErrMsg: "label \"nonexistent\" on \"tnagatomi/mock-repo\" not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer gock.Off()
+			if tt.mock != nil {
+				tt.mock()
+			}
+
+			api, err := NewAPI(http.DefaultClient)
+			if err != nil {
+				t.Fatalf("NewAPI() error = %v", err)
+			}
+
+			err = api.UpdateLabel(tt.args.label, tt.args.repo)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UpdateLabel() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil && err.Error() != tt.wantErrMsg {
+				t.Errorf("UpdateLabel() error = %v, wantErrMsg = %v", err.Error(), tt.wantErrMsg)
+			}
+
+			if !gock.IsDone() {
+				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			}
+		})
+	}
+}
+
 func TestListLabels(t *testing.T) {
 	type args struct {
 		repo  option.Repo

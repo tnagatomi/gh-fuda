@@ -34,6 +34,7 @@ import (
 // APIClient is a interface for the API client
 type APIClient interface {
 	CreateLabel(label option.Label, repo option.Repo) error
+	UpdateLabel(label option.Label, repo option.Repo) error
 	DeleteLabel(label string, repo option.Repo) error
 	ListLabels(repo option.Repo) ([]string, error)
 }
@@ -66,6 +67,24 @@ func (a *API) CreateLabel(label option.Label, repo option.Repo) error {
 			resource := fmt.Sprintf("repository %q", fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
 			return wrapGitHubError(err, resource)
 		}
+		resource := fmt.Sprintf("label %q on %q", label.Name, fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
+		return wrapGitHubError(err, resource)
+	}
+
+	return nil
+}
+
+// UpdateLabel updates an existing label in the repository
+func (a *API) UpdateLabel(label option.Label, repo option.Repo) error {
+	githubLabel := &github.Label{
+		Name:        github.String(label.Name),
+		Description: github.String(label.Description),
+		Color:       github.String(label.Color),
+	}
+
+	_, _, err := a.client.Issues.EditLabel(context.Background(), repo.Owner, repo.Repo, label.Name, githubLabel)
+
+	if err != nil {
 		resource := fmt.Sprintf("label %q on %q", label.Name, fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
 		return wrapGitHubError(err, resource)
 	}

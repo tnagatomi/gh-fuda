@@ -72,7 +72,7 @@ func TestWrapGitHubError(t *testing.T) {
 				Message:  "Not Found",
 			},
 			resource: "repository \"owner/repo\"",
-			want:     &NotFoundError{resource: "repository \"owner/repo\""},
+			want:     &NotFoundError{Resource: "repository \"owner/repo\""},
 			wantMsg:  "repository \"owner/repo\" not found",
 		},
 		{
@@ -95,7 +95,7 @@ func TestWrapGitHubError(t *testing.T) {
 				},
 			},
 			resource: "label \"bug\" on \"owner/repo\"",
-			want:     &AlreadyExistsError{resource: "label \"bug\" on \"owner/repo\""},
+			want:     &AlreadyExistsError{Resource: "label \"bug\" on \"owner/repo\""},
 			wantMsg:  "label \"bug\" on \"owner/repo\" already exists",
 		},
 		{
@@ -161,8 +161,8 @@ func TestWrapGitHubError(t *testing.T) {
 				gotErr, ok := got.(*NotFoundError)
 				if !ok {
 					t.Errorf("wrapGitHubError() = %T, want %T", got, want)
-				} else if gotErr.resource != want.resource {
-					t.Errorf("NotFoundError.resource = %v, want %v", gotErr.resource, want.resource)
+				} else if gotErr.Resource != want.Resource {
+					t.Errorf("NotFoundError.Resource = %v, want %v", gotErr.Resource, want.Resource)
 				}
 			case *RateLimitError:
 				if _, ok := got.(*RateLimitError); !ok {
@@ -172,8 +172,8 @@ func TestWrapGitHubError(t *testing.T) {
 				gotErr, ok := got.(*AlreadyExistsError)
 				if !ok {
 					t.Errorf("wrapGitHubError() = %T, want %T", got, want)
-				} else if gotErr.resource != want.resource {
-					t.Errorf("AlreadyExistsError.resource = %v, want %v", gotErr.resource, want.resource)
+				} else if gotErr.Resource != want.Resource {
+					t.Errorf("AlreadyExistsError.resource = %v, want %v", gotErr.Resource, want.Resource)
 				}
 			}
 		})
@@ -189,7 +189,7 @@ func TestHelperFunctions(t *testing.T) {
 	}{
 		{
 			name:     "IsNotFound with NotFoundError",
-			err:      &NotFoundError{resource: "test"},
+			err:      &NotFoundError{Resource: "test"},
 			checkFn:  IsNotFound,
 			expected: true,
 		},
@@ -231,19 +231,19 @@ func TestHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "IsRateLimit with other error",
-			err:      &AlreadyExistsError{resource: "test"},
+			err:      &AlreadyExistsError{Resource: "test"},
 			checkFn:  IsRateLimit,
 			expected: false,
 		},
 		{
 			name:     "IsAlreadyExists with AlreadyExistsError",
-			err:      &AlreadyExistsError{resource: "test"},
+			err:      &AlreadyExistsError{Resource: "test"},
 			checkFn:  IsAlreadyExists,
 			expected: true,
 		},
 		{
 			name:     "IsAlreadyExists with other error",
-			err:      &NotFoundError{resource: "test"},
+			err:      &NotFoundError{Resource: "test"},
 			checkFn:  IsAlreadyExists,
 			expected: false,
 		},
@@ -276,12 +276,12 @@ func TestErrorMessages(t *testing.T) {
 		},
 		{
 			name:    "NotFoundError with resource",
-			err:     &NotFoundError{resource: "label \"bug\" on \"owner/repo\""},
+			err:     &NotFoundError{Resource: "label \"bug\" on \"owner/repo\""},
 			wantMsg: "label \"bug\" on \"owner/repo\" not found",
 		},
 		{
 			name:    "NotFoundError without resource",
-			err:     &NotFoundError{resource: ""},
+			err:     &NotFoundError{Resource: ""},
 			wantMsg: "not found",
 		},
 		{
@@ -291,12 +291,12 @@ func TestErrorMessages(t *testing.T) {
 		},
 		{
 			name:    "AlreadyExistsError with resource",
-			err:     &AlreadyExistsError{resource: "label \"bug\" on \"owner/repo\""},
+			err:     &AlreadyExistsError{Resource: "label \"bug\" on \"owner/repo\""},
 			wantMsg: "label \"bug\" on \"owner/repo\" already exists",
 		},
 		{
 			name:    "AlreadyExistsError without resource",
-			err:     &AlreadyExistsError{resource: ""},
+			err:     &AlreadyExistsError{Resource: ""},
 			wantMsg: "already exists",
 		},
 	}

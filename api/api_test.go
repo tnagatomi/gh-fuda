@@ -19,6 +19,7 @@ func TestCreateLabel(t *testing.T) {
 		name       string
 		args       args
 		mock       func()
+		wantErr    bool
 		wantErrMsg string
 	}{
 		{
@@ -42,7 +43,103 @@ func TestCreateLabel(t *testing.T) {
 					Reply(201).
 					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"})
 			},
-			wantErrMsg: "",
+			wantErr:    false,
+		},
+		{
+			name: "unauthorized",
+			args: args{
+				label: option.Label{
+					Name:        "bug",
+					Description: "This is a bug",
+					Color:       "ff0000",
+				},
+				repo: option.Repo{
+					Owner: "tnagatomi",
+					Repo:  "mock-repo",
+				},
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
+					Reply(401).
+					JSON(map[string]string{"message": "Bad credentials"})
+			},
+			wantErr:    true,
+			wantErrMsg: "unauthorized",
+		},
+		{
+			name: "forbidden",
+			args: args{
+				label: option.Label{
+					Name:        "bug",
+					Description: "This is a bug",
+					Color:       "ff0000",
+				},
+				repo: option.Repo{
+					Owner: "tnagatomi",
+					Repo:  "mock-repo",
+				},
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
+					Reply(403).
+					JSON(map[string]string{"message": "Resource not accessible by integration"})
+			},
+			wantErr:    true,
+			wantErrMsg: "forbidden",
+		},
+		{
+			name: "rate limit exceeded",
+			args: args{
+				label: option.Label{
+					Name:        "bug",
+					Description: "This is a bug",
+					Color:       "ff0000",
+				},
+				repo: option.Repo{
+					Owner: "tnagatomi",
+					Repo:  "mock-repo",
+				},
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/mock-repo/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
+					Reply(429).
+					JSON(map[string]string{"message": "API rate limit exceeded"})
+			},
+			wantErr:    true,
+			wantErrMsg: "rate limit exceeded",
+		},
+		{
+			name: "repository not found",
+			args: args{
+				label: option.Label{
+					Name:        "bug",
+					Description: "This is a bug",
+					Color:       "ff0000",
+				},
+				repo: option.Repo{
+					Owner: "tnagatomi",
+					Repo:  "non-existent-repo",
+				},
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/repos/tnagatomi/non-existent-repo/labels").
+					MatchType("json").
+					JSON(map[string]string{"name": "bug", "description": "This is a bug", "color": "ff0000"}).
+					Reply(404).
+					JSON(map[string]string{"message": "Not Found"})
+			},
+			wantErr:    true,
+			wantErrMsg: "repository \"tnagatomi/non-existent-repo\" not found",
 		},
 		{
 			name: "already exists",
@@ -71,7 +168,8 @@ func TestCreateLabel(t *testing.T) {
 						},
 					})
 			},
-			wantErrMsg: "label \"bug\" already exists for repository \"tnagatomi/mock-repo\"",
+			wantErr:    true,
+			wantErrMsg: "label \"bug\" on \"tnagatomi/mock-repo\" already exists",
 		},
 	}
 
@@ -89,8 +187,11 @@ func TestCreateLabel(t *testing.T) {
 
 			err = api.CreateLabel(tt.args.label, tt.args.repo)
 
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateLabel() error = %v, wantErr %v", err, tt.wantErr)
+			}
 			if err != nil && err.Error() != tt.wantErrMsg {
-				t.Errorf("CreateLabel() error = %v, wantErr = %v", err, tt.wantErrMsg)
+				t.Errorf("CreateLabel() error = %v, wantErrMsg = %v", err.Error(), tt.wantErrMsg)
 			}
 			if !gock.IsDone() {
 				t.Errorf("pending mocks: %d", len(gock.Pending()))
@@ -108,7 +209,8 @@ func TestDeleteLabel(t *testing.T) {
 		name       string
 		args       args
 		mock       func()
-		wantErr	 bool
+		wantErr	   bool
+		wantErrMsg string
 	}{
 		{
 			name: "success",
@@ -138,9 +240,11 @@ func TestDeleteLabel(t *testing.T) {
 			mock: func() {
 				gock.New("https://api.github.com").
 					Delete("/repos/tnagatomi/mock-repo/labels/bug").
-					Reply(404)
+					Reply(404).
+					JSON(map[string]string{"message": "Not Found"})
 			},
 			wantErr: true,
+			wantErrMsg: "label \"bug\" on \"tnagatomi/mock-repo\" not found",
 		},
 	}
 
@@ -159,7 +263,10 @@ func TestDeleteLabel(t *testing.T) {
 			err = api.DeleteLabel(tt.args.label, tt.args.repo)
 
 			if (err != nil) != tt.wantErr {
-				t.Errorf("DeleteLabel() error = %v", err)
+				t.Errorf("DeleteLabel() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil && err.Error() != tt.wantErrMsg {
+				t.Errorf("DeleteLabel() error = %v, wantErrMsg = %v", err.Error(), tt.wantErrMsg)
 			}
 
 			if !gock.IsDone() {
@@ -177,8 +284,9 @@ func TestListLabels(t *testing.T) {
 		name       string
 		args       args
 		mock       func()
-		want []string
-		wantErr bool
+		want       []string
+		wantErr    bool
+		wantErrMsg string
 	}{
 		{
 			name: "success",
@@ -214,6 +322,24 @@ func TestListLabels(t *testing.T) {
 			want: []string{},
 			wantErr: false,
 		},
+		{
+			name: "repository not found",
+			args: args{
+				repo:  option.Repo{
+					Owner: "tnagatomi",
+					Repo:  "non-existent-repo",
+				},
+			},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Get("/repos/tnagatomi/non-existent-repo/labels").
+					Reply(404).
+					JSON(map[string]string{"message": "Not Found"})
+			},
+			want:       nil,
+			wantErr:    true,
+			wantErrMsg: "repository \"tnagatomi/non-existent-repo\" not found",
+		},
 	}
 
 	for _, tt := range tests {
@@ -230,7 +356,10 @@ func TestListLabels(t *testing.T) {
 
 			labels, err := api.ListLabels(tt.args.repo)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ListLabels() error = %v", err)
+				t.Errorf("ListLabels() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil && err.Error() != tt.wantErrMsg {
+				t.Errorf("ListLabels() error = %v, wantErrMsg = %v", err.Error(), tt.wantErrMsg)
 			}
 
 			if !cmp.Equal(labels, tt.want, cmpopts.EquateEmpty()) {

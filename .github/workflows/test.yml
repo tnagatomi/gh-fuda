@@ -1,6 +1,10 @@
 name: test
 on:
   pull_request:
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
 jobs:
   test-ubuntu:
     name: Test on Ubuntu

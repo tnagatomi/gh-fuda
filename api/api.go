@@ -23,11 +23,12 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
+
 	"github.com/google/go-github/v59/github"
 	"github.com/tnagatomi/gh-fuda/option"
-	"net/http"
-	"strings"
 )
 
 // APIClient is a interface for the API client
@@ -60,10 +61,13 @@ func (a *API) CreateLabel(label option.Label, repo option.Repo) error {
 	_, _, err := a.client.Issues.CreateLabel(context.Background(), repo.Owner, repo.Repo, githubLabel)
 
 	if err != nil {
-		if strings.Contains(err.Error(), "already_exists") {
-			return fmt.Errorf("label %q already exists for repository %q", label, repo)
+		var ghErr *github.ErrorResponse
+		if errors.As(err, &ghErr) && ghErr.Response.StatusCode == 404 {
+			resource := fmt.Sprintf("repository %q", fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
+			return wrapGitHubError(err, resource)
 		}
-		return err
+		resource := fmt.Sprintf("label %q on %q", label.Name, fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
+		return wrapGitHubError(err, resource)
 	}
 
 	return nil
@@ -74,7 +78,8 @@ func (a *API) DeleteLabel(label string, repo option.Repo) error {
 	_, err := a.client.Issues.DeleteLabel(context.Background(), repo.Owner, repo.Repo, label)
 
 	if err != nil {
-		return err
+		resource := fmt.Sprintf("label %q on %q", label, fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
+		return wrapGitHubError(err, resource)
 	}
 
 	return nil
@@ -85,7 +90,8 @@ func (a *API) ListLabels(repo option.Repo) ([]string, error) {
 	labels, _, err := a.client.Issues.ListLabels(context.Background(), repo.Owner, repo.Repo, nil)
 
 	if err != nil {
-		return nil, err
+		resource := fmt.Sprintf("repository %q", fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
+		return nil, wrapGitHubError(err, resource)
 	}
 
 	var labelNames []string

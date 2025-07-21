@@ -522,11 +522,18 @@ func TestSync(t *testing.T) {
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					if repo.Repo == "mock-repo-1" {
-						return []string{"bug", "enhancement", "question"}, nil
+						return []option.Label{
+						{Name: "bug"},
+						{Name: "enhancement"},
+						{Name: "question"},
+					}, nil
 					}
-					return []string{"bug", "help wanted"}, nil
+					return []option.Label{
+						{Name: "bug"},
+						{Name: "help wanted"},
+					}, nil
 				},
 				UpdateLabelFunc: func(label option.Label, repo option.Repo) error {
 					return nil
@@ -588,11 +595,11 @@ Summary: all operations completed successfully
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					if repo.Repo == "non-existent-repo" {
 						return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 					}
-					return []string{}, nil
+					return []option.Label{}, nil
 				},
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
 					return nil
@@ -638,8 +645,8 @@ Summary: 1 repositories succeeded, 1 failed
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
-					return []string{"bug"}, nil
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{{Name: "bug"}}, nil
 				},
 				UpdateLabelFunc: func(label option.Label, repo option.Repo) error {
 					return &api.ForbiddenError{}
@@ -685,11 +692,11 @@ Summary: 0 repositories succeeded, 2 failed
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					if repo.Repo == "repo-2" {
 						return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 					}
-					return []string{"old-label"}, nil
+					return []option.Label{{Name: "old-label"}}, nil
 				},
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
 					return nil
@@ -751,11 +758,15 @@ Summary: 1 repositories succeeded, 2 failed
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
 					return nil
 				},
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					if repo.Repo == "mock-repo-1" {
-						return []string{"bug", "enhancement", "question"}, nil
+						return []option.Label{
+						{Name: "bug"},
+						{Name: "enhancement"},
+						{Name: "question"},
+					}, nil
 					}
-					return []string{}, nil
+					return []option.Label{}, nil
 				},
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
 					return nil
@@ -838,6 +849,186 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo-2"
 	}
 }
 
+func TestList(t *testing.T) {
+	type args struct {
+		repos []option.Repo
+	}
+	tests := []struct {
+		name    string
+		args    args
+		mock    *mock.MockAPI
+		wantOut string
+		wantErr bool
+		wantListCall []option.Repo
+	}{
+		{
+			name: "single repository with labels",
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{
+						{Name: "bug", Color: "d73a4a", Description: "Something isn't working"},
+						{Name: "enhancement", Color: "a2eeef", Description: "New feature or request"},
+						{Name: "documentation", Color: "0075ca", Description: ""},
+					}, nil
+				},
+			},
+			wantOut: `Labels for repository "tnagatomi/mock-repo":
+  bug (#d73a4a) - Something isn't working
+  enhancement (#a2eeef) - New feature or request
+  documentation (#0075ca)
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo"},
+			},
+		},
+		{
+			name: "multiple repositories",
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo-1"},
+					{Owner: "tnagatomi", Repo: "mock-repo-2"},
+				},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					if repo.Repo == "mock-repo-1" {
+						return []option.Label{
+							{Name: "bug", Color: "d73a4a", Description: "Something isn't working"},
+						}, nil
+					}
+					return []option.Label{
+						{Name: "enhancement", Color: "a2eeef", Description: ""},
+						{Name: "good first issue", Color: "7057ff", Description: "Good for newcomers"},
+					}, nil
+				},
+			},
+			wantOut: `Labels for repository "tnagatomi/mock-repo-1":
+  bug (#d73a4a) - Something isn't working
+Labels for repository "tnagatomi/mock-repo-2":
+  enhancement (#a2eeef)
+  good first issue (#7057ff) - Good for newcomers
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo-1"},
+				{Owner: "tnagatomi", Repo: "mock-repo-2"},
+			},
+		},
+		{
+			name: "repository with no labels",
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "empty-repo"},
+				},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{}, nil
+				},
+			},
+			wantOut: `Repository "tnagatomi/empty-repo" has no labels
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "empty-repo"},
+			},
+		},
+		{
+			name: "repository not found",
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "non-existent-repo"},
+				},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
+				},
+			},
+			wantOut: `Failed to list labels for repository "tnagatomi/non-existent-repo": repository not found
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "non-existent-repo"},
+			},
+		},
+		{
+			name: "mixed success and failure",
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "repo-1"},
+					{Owner: "tnagatomi", Repo: "repo-2"},
+					{Owner: "tnagatomi", Repo: "repo-3"},
+				},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					if repo.Repo == "repo-2" {
+						return nil, &api.ForbiddenError{}
+					}
+					return []option.Label{
+						{Name: "bug", Color: "d73a4a", Description: ""},
+					}, nil
+				},
+			},
+			wantOut: `Labels for repository "tnagatomi/repo-1":
+  bug (#d73a4a)
+Failed to list labels for repository "tnagatomi/repo-2": forbidden
+Labels for repository "tnagatomi/repo-3":
+  bug (#d73a4a)
+
+Summary: 2 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "repo-1"},
+				{Owner: "tnagatomi", Repo: "repo-2"},
+				{Owner: "tnagatomi", Repo: "repo-3"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Executor{
+				api:    tt.mock,
+				dryRun: false,
+			}
+			out := &bytes.Buffer{}
+			err := e.List(out, tt.args.repos)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotOut := out.String(); gotOut != tt.wantOut {
+				t.Errorf("List() gotOut = %v, want %v", gotOut, tt.wantOut)
+			}
+			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
+				t.Errorf("List() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
+			}
+			for i, call := range tt.mock.ListLabelsCalls {
+				if call.Repo != tt.wantListCall[i] {
+					t.Errorf("List() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
+				}
+			}
+		})
+	}
+}
+
 func TestEmpty(t *testing.T) {
 	type args struct {
 		repos []option.Repo
@@ -864,8 +1055,12 @@ func TestEmpty(t *testing.T) {
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
-					return []string{"bug", "enhancement", "question"}, nil
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{
+						{Name: "bug"},
+						{Name: "enhancement"},
+						{Name: "question"},
+					}, nil
 				},
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
 					return nil
@@ -900,11 +1095,18 @@ Summary: all operations completed successfully
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					if repo.Owner == "tnagatomi" && repo.Repo == "mock-repo-1" {
-						return []string{"bug", "enhancement", "question"}, nil
+						return []option.Label{
+						{Name: "bug"},
+						{Name: "enhancement"},
+						{Name: "question"},
+					}, nil
 					} else if repo.Owner == "tnagatomi" && repo.Repo == "mock-repo-2" {
-						return []string{"invalid", "help wanted"}, nil
+						return []option.Label{
+						{Name: "invalid"},
+						{Name: "help wanted"},
+					}, nil
 					}
 					return nil, fmt.Errorf("unexpected repository: %v", repo)
 				},
@@ -945,7 +1147,7 @@ Summary: all operations completed successfully
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 				},
 			},
@@ -971,8 +1173,11 @@ Summary: 0 repositories succeeded, 1 failed
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
-					return []string{"bug", "enhancement"}, nil
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{
+					{Name: "bug"},
+					{Name: "enhancement"},
+				}, nil
 				},
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
 					return &api.ForbiddenError{}
@@ -1006,11 +1211,11 @@ Summary: 0 repositories succeeded, 1 failed
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					if repo.Repo == "repo-2" {
 						return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 					}
-					return []string{"bug"}, nil
+					return []option.Label{{Name: "bug"}}, nil
 				},
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
 					return nil
@@ -1045,8 +1250,12 @@ Summary: 2 repositories succeeded, 1 failed
 				},
 			},
 			mock: &mock.MockAPI{
-				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
-					return []string{"bug", "enhancement", "question"}, nil
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{
+						{Name: "bug"},
+						{Name: "enhancement"},
+						{Name: "question"},
+					}, nil
 				},
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
 					return nil

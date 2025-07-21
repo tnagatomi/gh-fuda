@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-gh-fuda is a GitHub CLI extension that enables label operations across multiple repositories. It's written in Go and provides commands to create, delete, sync, and empty labels across GitHub repositories.
+gh-fuda is a GitHub CLI extension that enables label operations across multiple repositories. It's written in Go and provides commands to list, create, delete, sync, and empty labels across GitHub repositories.
 
 ## Commands
 
@@ -24,16 +24,18 @@ gh-fuda is a GitHub CLI extension that enables label operations across multiple 
 The codebase follows a clean layered architecture:
 
 1. **cmd/** - CLI command implementations using Cobra
-   - Each command (create, delete, sync, empty) has its own file
+   - Each command (list, create, delete, sync, empty) has its own file
    - Commands parse arguments and delegate to executor
    - `create` and `sync` commands support JSON file input via `--json` flag
+   - `list` command does not use dry-run mode as it's a read-only operation
 
 2. **executor/** - Business logic layer
    - Contains the core functionality for label operations
    - Handles batch operations across multiple repositories
-   - Supports dry-run mode for all operations
+   - Supports dry-run mode for all operations (except `list` which is read-only)
    - Uses `ExecutionResult` to collect errors and provide operation summaries
    - Implements smart sync logic that diffs existing labels and updates only as needed
+   - `List` method displays labels with their colors and descriptions
 
 3. **api/** - GitHub API client wrapper
    - Defines `APIClient` interface for testability
@@ -41,6 +43,7 @@ The codebase follows a clean layered architecture:
    - All API operations go through this layer
    - Provides custom error types (`NotFoundError`, `ForbiddenError`, etc.) with `ResourceType` enum for better error categorization
    - Error messages are simplified (e.g., "repository not found" instead of full details)
+   - `ListLabels` supports pagination to handle repositories with more than 100 labels
 
 4. **parser/** - Command-line option parsing
    - Handles file-based input for labels and repositories
@@ -83,8 +86,9 @@ func TestFunctionName(t *testing.T) {
   - `CreateLabel(label option.Label, repo option.Repo) error`
   - `UpdateLabel(label option.Label, repo option.Repo) error`
   - `DeleteLabel(label string, repo option.Repo) error`
-  - `ListLabels(repo option.Repo) ([]string, error)`
+  - `ListLabels(repo option.Repo) ([]option.Label, error)` - Returns full label details including color and description
 - Executor methods accept structured data instead of strings:
+  - `List(out io.Writer, repos []option.Repo) error` - Lists all labels with their details
   - `Create(out io.Writer, repos []option.Repo, labels []option.Label) error`
   - `Delete(out io.Writer, repos []option.Repo, labels []string) error`
   - `Sync(out io.Writer, repos []option.Repo, labels []option.Label) error`
@@ -132,3 +136,8 @@ GitHub Actions workflows:
 - `test.yml` - Runs tests on multiple OS (Ubuntu, Windows, macOS)
 - `golangci-lint.yml` - Code quality checks
 - `release.yml` - Automated release process
+
+## Version History
+
+- **v2.0.0** (upcoming) - Breaking change: `ListLabels` now returns `[]option.Label` instead of `[]string`. Added `list` command with pagination support.
+- **v1.0.0** - Initial stable release

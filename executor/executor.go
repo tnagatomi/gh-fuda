@@ -146,27 +146,27 @@ func (e *Executor) Sync(out io.Writer, repos []option.Repo, labels []option.Labe
 
 		// Delete labels not in the new set
 		for _, existing := range existingLabels {
-			if labelNameExists(existing, labels) {
+			if labelExists(existing.Name, labels) {
 				continue
 			}
 
 			if e.dryRun {
-				_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", existing, repo)
+				_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", existing.Name, repo)
 				continue
 			}
 
-			err = e.api.DeleteLabel(existing, repo)
+			err = e.api.DeleteLabel(existing.Name, repo)
 			if err != nil {
 				repoResult.Errors = append(repoResult.Errors, err)
-				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", existing, repo, err)
+				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", existing.Name, repo, err)
 			} else {
-				_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", existing, repo)
+				_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", existing.Name, repo)
 			}
 		}
 
 		// Create or update labels
 		for _, label := range labels {
-			if stringExists(label.Name, existingLabels) {
+			if labelExists(label.Name, existingLabels) {
 				if e.dryRun {
 					_, _ = fmt.Fprintf(out, "Would update label %q for repository %q\n", label, repo)
 					continue
@@ -208,6 +208,45 @@ func (e *Executor) Sync(out io.Writer, repos []option.Repo, labels []option.Labe
 	return er.Err()
 }
 
+// List lists labels across multiple repositories
+func (e *Executor) List(out io.Writer, repos []option.Repo) error {
+	er := NewExecutionResult()
+
+	for _, repo := range repos {
+		repoResult := &RepoResult{
+			Repo:   repo.String(),
+			Errors: nil,
+		}
+
+		labels, err := e.api.ListLabels(repo)
+		if err != nil {
+			repoResult.Errors = append(repoResult.Errors, err)
+			_, _ = fmt.Fprintf(out, "Failed to list labels for repository %q: %v\n", repo, err)
+			er.AddRepoResult(repoResult)
+			continue
+		}
+
+		if len(labels) == 0 {
+			_, _ = fmt.Fprintf(out, "Repository %q has no labels\n", repo)
+		} else {
+			_, _ = fmt.Fprintf(out, "Labels for repository %q:\n", repo)
+			for _, label := range labels {
+				if label.Description == "" {
+					_, _ = fmt.Fprintf(out, "  %s (#%s)\n", label.Name, label.Color)
+				} else {
+					_, _ = fmt.Fprintf(out, "  %s (#%s) - %s\n", label.Name, label.Color, label.Description)
+				}
+			}
+		}
+
+		er.AddRepoResult(repoResult)
+	}
+
+	_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+
+	return er.Err()
+}
+
 // Empty empties labels across multiple repositories
 func (e *Executor) Empty(out io.Writer, repos []option.Repo) error {
 	er := NewExecutionResult()
@@ -242,16 +281,16 @@ func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) []*RepoResult
 
 		for _, label := range labels {
 			if e.dryRun {
-				_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", label, repo)
+				_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", label.Name, repo)
 				continue
 			}
 
-			err := e.api.DeleteLabel(label, repo)
+			err := e.api.DeleteLabel(label.Name, repo)
 			if err != nil {
 				repoResult.Errors = append(repoResult.Errors, err)
-				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", label, repo, err)
+				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", label.Name, repo, err)
 			} else {
-				_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", label, repo)
+				_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", label.Name, repo)
 			}
 		}
 
@@ -261,20 +300,10 @@ func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) []*RepoResult
 	return results
 }
 
-// labelNameExists checks if a label name exists in a slice of labels
-func labelNameExists(name string, labels []option.Label) bool {
+// labelExists checks if a label name exists in a slice of labels
+func labelExists(name string, labels []option.Label) bool {
 	for _, label := range labels {
 		if name == label.Name {
-			return true
-		}
-	}
-	return false
-}
-
-// stringExists checks if a string exists in a slice of strings
-func stringExists(target string, strings []string) bool {
-	for _, s := range strings {
-		if target == s {
 			return true
 		}
 	}

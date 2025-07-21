@@ -47,7 +47,7 @@ func NewDeleteCmd(in io.Reader, out io.Writer) *cobra.Command {
 
 			e, err := executor.NewExecutor(client, dryRun)
 			if err != nil {
-				return fmt.Errorf("failed to create exector: %v", err)
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
 			repoList, err := parser.Repo(repos)

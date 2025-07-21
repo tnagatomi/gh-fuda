@@ -74,7 +74,7 @@ func NewCreateCmd(out io.Writer) *cobra.Command {
 
 			e, err := executor.NewExecutor(client, dryRun)
 			if err != nil {
-				return fmt.Errorf("failed to create exector: %v", err)
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
 			err = e.Create(out, repoList, labelList)

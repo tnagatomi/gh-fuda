@@ -9,6 +9,12 @@ type MockAPI struct {
 		Repo  option.Repo
 	}
 
+	UpdateLabelFunc func(label option.Label, repo option.Repo) error
+	UpdateLabelCalls []struct {
+		Label option.Label
+		Repo  option.Repo
+	}
+
 	DeleteLabelFunc func(label string, repo option.Repo) error
 	DeleteLabelCalls []struct {
 		Label string
@@ -29,6 +35,19 @@ func (m *MockAPI) CreateLabel(label option.Label, repo option.Repo) error {
 
 	if m.CreateLabelFunc != nil {
 		return m.CreateLabelFunc(label, repo)
+	}
+
+	return nil
+}
+
+func (m *MockAPI) UpdateLabel(label option.Label, repo option.Repo) error {
+	m.UpdateLabelCalls = append(m.UpdateLabelCalls, struct {
+		Label option.Label
+		Repo  option.Repo
+	}{label,repo})
+
+	if m.UpdateLabelFunc != nil {
+		return m.UpdateLabelFunc(label, repo)
 	}
 
 	return nil

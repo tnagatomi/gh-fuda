@@ -31,11 +31,15 @@ The codebase follows a clean layered architecture:
    - Contains the core functionality for label operations
    - Handles batch operations across multiple repositories
    - Supports dry-run mode for all operations
+   - Uses `ExecutionResult` to collect errors and provide operation summaries
+   - Implements smart sync logic that diffs existing labels and updates only as needed
 
 3. **api/** - GitHub API client wrapper
    - Defines `APIClient` interface for testability
    - Wraps google/go-github client
    - All API operations go through this layer
+   - Provides custom error types (`NotFoundError`, `ForbiddenError`, etc.) with `ResourceType` enum for better error categorization
+   - Error messages are simplified (e.g., "repository not found" instead of full details)
 
 4. **parser/** - Command-line option parsing
    - Handles file-based input for labels and repositories
@@ -74,13 +78,21 @@ func TestFunctionName(t *testing.T) {
 ## Key Interfaces
 
 - `api.APIClient` - Main interface for GitHub API operations
+  - `CreateLabel(label option.Label, repo option.Repo) error`
+  - `UpdateLabel(label option.Label, repo option.Repo) error`
+  - `DeleteLabel(label string, repo option.Repo) error`
+  - `ListLabels(repo option.Repo) ([]string, error)`
 - All executor functions accept this interface for dependency injection
 
 ## Error Handling
 
 - Operations continue even if individual label operations fail
-- Errors are collected and reported at the end
+- Errors are collected using `ExecutionResult` structure
+- Summary is displayed at the end showing success/failure counts (format: "Summary: X repositories succeeded, Y failed")
 - Exit code 1 if any operations failed
+- Custom error types for common GitHub API errors (404, 403, etc.) with `ResourceType` enum to distinguish between repository and label errors
+- Simplified error messages without redundant details (e.g., "repository not found" instead of "repository 'owner/repo' not found")
+- Command usage is not displayed for runtime errors (only for argument/flag errors)
 
 ## CI/CD
 

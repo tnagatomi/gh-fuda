@@ -43,16 +43,24 @@ func (e *ForbiddenError) Error() string {
 	return "forbidden"
 }
 
+// ResourceType represents the type of resource
+type ResourceType string
+
+const (
+	ResourceTypeRepository ResourceType = "repository"
+	ResourceTypeLabel      ResourceType = "label"
+)
+
 // NotFoundError indicates 404 Not Found response
 type NotFoundError struct {
-	resource string
+	ResourceType ResourceType
 }
 
 func (e *NotFoundError) Error() string {
-	if e.resource == "" {
+	if e.ResourceType == "" {
 		return "not found"
 	}
-	return fmt.Sprintf("%s not found", e.resource)
+	return fmt.Sprintf("%s not found", e.ResourceType)
 }
 
 // RateLimitError indicates 429 Too Many Requests response
@@ -64,14 +72,14 @@ func (e *RateLimitError) Error() string {
 
 // AlreadyExistsError indicates resource already exists
 type AlreadyExistsError struct {
-	resource string
+	ResourceType ResourceType
 }
 
 func (e *AlreadyExistsError) Error() string {
-	if e.resource == "" {
+	if e.ResourceType == "" {
 		return "already exists"
 	}
-	return fmt.Sprintf("%s already exists", e.resource)
+	return fmt.Sprintf("%s already exists", e.ResourceType)
 }
 
 // Helper functions to check error types
@@ -101,7 +109,7 @@ func IsAlreadyExists(err error) bool {
 }
 
 // wrapGitHubError converts GitHub API errors to our custom error types
-func wrapGitHubError(err error, resource string) error {
+func wrapGitHubError(err error, resourceType ResourceType) error {
 	if err == nil {
 		return nil
 	}
@@ -114,12 +122,12 @@ func wrapGitHubError(err error, resource string) error {
 		case 403:
 			return &ForbiddenError{}
 		case 404:
-			return &NotFoundError{resource: resource}
+			return &NotFoundError{ResourceType: resourceType}
 		case 429:
 			return &RateLimitError{}
 		case 422:
 			if strings.Contains(err.Error(), "already_exists") {
-				return &AlreadyExistsError{resource: resource}
+				return &AlreadyExistsError{ResourceType: resourceType}
 			}
 			return fmt.Errorf("GitHub API error (status %d): %s", ghErr.Response.StatusCode, ghErr.Message)
 		default:

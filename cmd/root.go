@@ -37,6 +37,8 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "gh-fuda",
 	Short: "gh extension for manipulating labels across multiple repositories",
+	SilenceErrors:      true,
+	SilenceUsage:       true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

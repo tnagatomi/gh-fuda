@@ -32,16 +32,16 @@ import (
 
 func TestWrapGitHubError(t *testing.T) {
 	tests := []struct {
-		name     string
-		err      error
-		resource string
-		want     error
-		wantMsg  string
+		name         string
+		err          error
+		resourceType ResourceType
+		want         error
+		wantMsg      string
 	}{
 		{
 			name:     "nil error",
 			err:      nil,
-			resource: "test resource",
+			resourceType: ResourceTypeLabel,
 			want:     nil,
 			wantMsg:  "",
 		},
@@ -51,7 +51,7 @@ func TestWrapGitHubError(t *testing.T) {
 				Response: &http.Response{StatusCode: 401},
 				Message:  "Bad credentials",
 			},
-			resource: "test resource",
+			resourceType: ResourceTypeLabel,
 			want:     &UnauthorizedError{},
 			wantMsg:  "unauthorized",
 		},
@@ -61,7 +61,7 @@ func TestWrapGitHubError(t *testing.T) {
 				Response: &http.Response{StatusCode: 403},
 				Message:  "Resource not accessible",
 			},
-			resource: "test resource",
+			resourceType: ResourceTypeLabel,
 			want:     &ForbiddenError{},
 			wantMsg:  "forbidden",
 		},
@@ -71,9 +71,9 @@ func TestWrapGitHubError(t *testing.T) {
 				Response: &http.Response{StatusCode: 404},
 				Message:  "Not Found",
 			},
-			resource: "repository \"owner/repo\"",
-			want:     &NotFoundError{resource: "repository \"owner/repo\""},
-			wantMsg:  "repository \"owner/repo\" not found",
+			resourceType: ResourceTypeRepository,
+			want:         &NotFoundError{ResourceType: ResourceTypeRepository},
+			wantMsg:      "repository not found",
 		},
 		{
 			name: "429 rate limit",
@@ -81,7 +81,7 @@ func TestWrapGitHubError(t *testing.T) {
 				Response: &http.Response{StatusCode: 429},
 				Message:  "API rate limit exceeded",
 			},
-			resource: "test resource",
+			resourceType: ResourceTypeLabel,
 			want:     &RateLimitError{},
 			wantMsg:  "rate limit exceeded",
 		},
@@ -94,9 +94,9 @@ func TestWrapGitHubError(t *testing.T) {
 					{Code: "already_exists"},
 				},
 			},
-			resource: "label \"bug\" on \"owner/repo\"",
-			want:     &AlreadyExistsError{resource: "label \"bug\" on \"owner/repo\""},
-			wantMsg:  "label \"bug\" on \"owner/repo\" already exists",
+			resourceType: ResourceTypeLabel,
+			want:         &AlreadyExistsError{ResourceType: ResourceTypeLabel},
+			wantMsg:      "label already exists",
 		},
 		{
 			name: "422 other validation error",
@@ -107,7 +107,7 @@ func TestWrapGitHubError(t *testing.T) {
 					{Code: "invalid"},
 				},
 			},
-			resource: "test resource",
+			resourceType: ResourceTypeLabel,
 			want:     fmt.Errorf("GitHub API error (status 422): Validation Failed"),
 			wantMsg:  "GitHub API error (status 422): Validation Failed",
 		},
@@ -117,14 +117,14 @@ func TestWrapGitHubError(t *testing.T) {
 				Response: &http.Response{StatusCode: 500},
 				Message:  "Internal Server Error",
 			},
-			resource: "test resource",
+			resourceType: ResourceTypeLabel,
 			want:     fmt.Errorf("GitHub API error (status 500): Internal Server Error"),
 			wantMsg:  "GitHub API error (status 500): Internal Server Error",
 		},
 		{
 			name:     "non-GitHub error",
 			err:      errors.New("network error"),
-			resource: "test resource",
+			resourceType: ResourceTypeLabel,
 			want:     errors.New("network error"),
 			wantMsg:  "network error",
 		},
@@ -132,7 +132,7 @@ func TestWrapGitHubError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := wrapGitHubError(tt.err, tt.resource)
+			got := wrapGitHubError(tt.err, tt.resourceType)
 
 			// Check if error is nil
 			if tt.want == nil {
@@ -161,8 +161,8 @@ func TestWrapGitHubError(t *testing.T) {
 				gotErr, ok := got.(*NotFoundError)
 				if !ok {
 					t.Errorf("wrapGitHubError() = %T, want %T", got, want)
-				} else if gotErr.resource != want.resource {
-					t.Errorf("NotFoundError.resource = %v, want %v", gotErr.resource, want.resource)
+				} else if gotErr.ResourceType != want.ResourceType {
+					t.Errorf("NotFoundError.ResourceType = %v, want %v", gotErr.ResourceType, want.ResourceType)
 				}
 			case *RateLimitError:
 				if _, ok := got.(*RateLimitError); !ok {
@@ -172,8 +172,8 @@ func TestWrapGitHubError(t *testing.T) {
 				gotErr, ok := got.(*AlreadyExistsError)
 				if !ok {
 					t.Errorf("wrapGitHubError() = %T, want %T", got, want)
-				} else if gotErr.resource != want.resource {
-					t.Errorf("AlreadyExistsError.resource = %v, want %v", gotErr.resource, want.resource)
+				} else if gotErr.ResourceType != want.ResourceType {
+					t.Errorf("AlreadyExistsError.ResourceType = %v, want %v", gotErr.ResourceType, want.ResourceType)
 				}
 			}
 		})
@@ -189,7 +189,7 @@ func TestHelperFunctions(t *testing.T) {
 	}{
 		{
 			name:     "IsNotFound with NotFoundError",
-			err:      &NotFoundError{resource: "test"},
+			err:      &NotFoundError{ResourceType: ResourceTypeLabel},
 			checkFn:  IsNotFound,
 			expected: true,
 		},
@@ -231,19 +231,19 @@ func TestHelperFunctions(t *testing.T) {
 		},
 		{
 			name:     "IsRateLimit with other error",
-			err:      &AlreadyExistsError{resource: "test"},
+			err:      &AlreadyExistsError{ResourceType: ResourceTypeLabel},
 			checkFn:  IsRateLimit,
 			expected: false,
 		},
 		{
 			name:     "IsAlreadyExists with AlreadyExistsError",
-			err:      &AlreadyExistsError{resource: "test"},
+			err:      &AlreadyExistsError{ResourceType: ResourceTypeLabel},
 			checkFn:  IsAlreadyExists,
 			expected: true,
 		},
 		{
 			name:     "IsAlreadyExists with other error",
-			err:      &NotFoundError{resource: "test"},
+			err:      &NotFoundError{ResourceType: ResourceTypeLabel},
 			checkFn:  IsAlreadyExists,
 			expected: false,
 		},
@@ -275,13 +275,18 @@ func TestErrorMessages(t *testing.T) {
 			wantMsg: "forbidden",
 		},
 		{
-			name:    "NotFoundError with resource",
-			err:     &NotFoundError{resource: "label \"bug\" on \"owner/repo\""},
-			wantMsg: "label \"bug\" on \"owner/repo\" not found",
+			name:    "NotFoundError with resource type repository",
+			err:     &NotFoundError{ResourceType: ResourceTypeRepository},
+			wantMsg: "repository not found",
 		},
 		{
-			name:    "NotFoundError without resource",
-			err:     &NotFoundError{resource: ""},
+			name:    "NotFoundError with resource type label",
+			err:     &NotFoundError{ResourceType: ResourceTypeLabel},
+			wantMsg: "label not found",
+		},
+		{
+			name:    "NotFoundError without resource type",
+			err:     &NotFoundError{ResourceType: ""},
 			wantMsg: "not found",
 		},
 		{
@@ -290,13 +295,13 @@ func TestErrorMessages(t *testing.T) {
 			wantMsg: "rate limit exceeded",
 		},
 		{
-			name:    "AlreadyExistsError with resource",
-			err:     &AlreadyExistsError{resource: "label \"bug\" on \"owner/repo\""},
-			wantMsg: "label \"bug\" on \"owner/repo\" already exists",
+			name:    "AlreadyExistsError with resource type label",
+			err:     &AlreadyExistsError{ResourceType: ResourceTypeLabel},
+			wantMsg: "label already exists",
 		},
 		{
-			name:    "AlreadyExistsError without resource",
-			err:     &AlreadyExistsError{resource: ""},
+			name:    "AlreadyExistsError without resource type",
+			err:     &AlreadyExistsError{ResourceType: ""},
 			wantMsg: "already exists",
 		},
 	}

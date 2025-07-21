@@ -23,10 +23,12 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/tnagatomi/gh-fuda/executor"
 	"io"
 	"os"
+
+	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/tnagatomi/gh-fuda/executor"
+	"github.com/tnagatomi/gh-fuda/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -47,6 +49,11 @@ func NewEmptyCmd(in io.Reader, out io.Writer) *cobra.Command {
 				return fmt.Errorf("failed to create exector: %v", err)
 			}
 
+			repoList, err := parser.Repo(repos)
+			if err != nil {
+				return fmt.Errorf("failed to parse repos option: %v", err)
+			}
+
 			if !dryRun && !force {
 				confirmed, err := confirm(in, out)
 				if err != nil {
@@ -58,7 +65,7 @@ func NewEmptyCmd(in io.Reader, out io.Writer) *cobra.Command {
 				}
 			}
 
-			err = e.Empty(out, repos)
+			err = e.Empty(out, repoList)
 			if err != nil {
 				return fmt.Errorf("failed to empty labels: %v", err)
 			}

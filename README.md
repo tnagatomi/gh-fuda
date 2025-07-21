@@ -32,11 +32,38 @@ Create specified labels to the specified repositories.
 ##### Options
 
 - `-l`, `--labels`: Specify the labels to create in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
+- `--json`: Specify the path to a JSON file containing labels to create
 
 ##### Example
 
 ```bash
+# Using inline labels
 gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
+
+# Using JSON file
+gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" --json labels.json
+```
+
+##### JSON File Format
+
+```json
+[
+  {
+    "name": "bug",
+    "color": "d73a4a",
+    "description": "Something isn't working"
+  },
+  {
+    "name": "enhancement",
+    "color": "a2eeef",
+    "description": "New feature or request"
+  },
+  {
+    "name": "documentation",
+    "color": "0075ca",
+    "description": "Improvements or additions to documentation"
+  }
+]
 ```
 
 #### Delete Labels
@@ -68,14 +95,23 @@ Sync the labels in the specified repositories with the specified labels.
 
 ##### Options
 
-- `-l`, `--labels`: Specify the labels to set in the format ofSpecify the labels to set in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
+- `-l`, `--labels`: Specify the labels to set in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
+- `--json`: Specify the path to a JSON file containing labels to sync
 - `--force`: Do not prompt for confirmation
 
 ##### Example
 
 ```bash
+# Using inline labels
 gh fuda sync -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:description for label 1,label2:00ff00,label3:0000ff"
+
+# Using JSON file
+gh fuda sync -R "owner1/repo1,owner1/repo2,owner2/repo1" --json labels.json
 ```
+
+##### JSON File Format
+
+The JSON file format is the same as the one used for the `create` command. See the [Create Labels](#create-labels) section for details.
 
 #### Empty Labels
 

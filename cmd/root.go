@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -31,14 +32,15 @@ var (
 	dryRun bool
 	force  bool
 	labels string
+	jsonPath string
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
-	Use:   "gh-fuda",
-	Short: "gh extension for manipulating labels across multiple repositories",
-	SilenceErrors:      true,
-	SilenceUsage:       true,
+	Use:           "gh-fuda",
+	Short:         "gh extension for manipulating labels across multiple repositories",
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

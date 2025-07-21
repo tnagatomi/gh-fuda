@@ -26,6 +26,7 @@ The codebase follows a clean layered architecture:
 1. **cmd/** - CLI command implementations using Cobra
    - Each command (create, delete, sync, empty) has its own file
    - Commands parse arguments and delegate to executor
+   - `create` and `sync` commands support JSON file input via `--json` flag
 
 2. **executor/** - Business logic layer
    - Contains the core functionality for label operations
@@ -44,6 +45,7 @@ The codebase follows a clean layered architecture:
 4. **parser/** - Command-line option parsing
    - Handles file-based input for labels and repositories
    - Validates and transforms user input
+   - `LabelFromJSON()` function to parse labels from JSON files
 
 5. **option/** - Option structures
    - Defines data structures for command options
@@ -82,7 +84,12 @@ func TestFunctionName(t *testing.T) {
   - `UpdateLabel(label option.Label, repo option.Repo) error`
   - `DeleteLabel(label string, repo option.Repo) error`
   - `ListLabels(repo option.Repo) ([]string, error)`
-- All executor functions accept this interface for dependency injection
+- Executor methods accept structured data instead of strings:
+  - `Create(out io.Writer, repos []option.Repo, labels []option.Label) error`
+  - `Delete(out io.Writer, repos []option.Repo, labels []string) error`
+  - `Sync(out io.Writer, repos []option.Repo, labels []option.Label) error`
+  - `Empty(out io.Writer, repos []option.Repo) error`
+- All executor functions accept APIClient interface for dependency injection
 
 ## Error Handling
 
@@ -93,6 +100,31 @@ func TestFunctionName(t *testing.T) {
 - Custom error types for common GitHub API errors (404, 403, etc.) with `ResourceType` enum to distinguish between repository and label errors
 - Simplified error messages without redundant details (e.g., "repository not found" instead of "repository 'owner/repo' not found")
 - Command usage is not displayed for runtime errors (only for argument/flag errors)
+
+## JSON File Support
+
+The `create` and `sync` commands support JSON file input for labels:
+
+```json
+[
+  {
+    "name": "bug",
+    "color": "d73a4a",
+    "description": "Something isn't working"
+  },
+  {
+    "name": "enhancement",
+    "color": "a2eeef",
+    "description": "New feature or request"
+  }
+]
+```
+
+Usage:
+- `gh fuda create -R owner/repo --json labels.json`
+- `gh fuda sync -R owner/repo --json labels.json`
+
+Note: `--json` and `-l/--labels` flags are mutually exclusive.
 
 ## CI/CD
 

@@ -104,7 +104,7 @@ Summary: all operations completed successfully
 			wantOut: `Failed to create label "bug" for repository "tnagatomi/non-existent-repo": repository not found
 Failed to create label "enhancement" for repository "tnagatomi/non-existent-repo": repository not found
 
-Summary: some operations failed: 0 repositories succeeded, 1 failed
+Summary: 0 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantCall: []struct {
@@ -129,7 +129,7 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 			},
 			wantOut: `Failed to create label "bug" for repository "tnagatomi/private-repo": forbidden
 
-Summary: some operations failed: 0 repositories succeeded, 1 failed
+Summary: 0 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantCall: []struct {
@@ -158,7 +158,7 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 Failed to create label "bug" for repository "tnagatomi/repo-2": repository not found
 Created label "bug" for repository "tnagatomi/repo-3"
 
-Summary: some operations failed: 2 repositories succeeded, 1 failed
+Summary: 2 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantCall: []struct {
@@ -316,7 +316,7 @@ Summary: all operations completed successfully
 			wantOut: `Failed to delete label "bug" for repository "tnagatomi/non-existent-repo": repository not found
 Failed to delete label "enhancement" for repository "tnagatomi/non-existent-repo": repository not found
 
-Summary: some operations failed: 0 repositories succeeded, 1 failed
+Summary: 0 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantCall: []struct {
@@ -341,7 +341,7 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 			},
 			wantOut: `Failed to delete label "bug" for repository "tnagatomi/private-repo": forbidden
 
-Summary: some operations failed: 0 repositories succeeded, 1 failed
+Summary: 0 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantCall: []struct {
@@ -370,7 +370,7 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 Failed to delete label "bug" for repository "tnagatomi/repo-2": repository not found
 Deleted label "bug" for repository "tnagatomi/repo-3"
 
-Summary: some operations failed: 2 repositories succeeded, 1 failed
+Summary: 2 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantCall: []struct {
@@ -541,7 +541,7 @@ Summary: all operations completed successfully
 Created label "enhancement" for repository "tnagatomi/mock-repo-1"
 Failed to list labels for repository "tnagatomi/non-existent-repo": repository not found
 
-Summary: some operations failed: 1 repositories succeeded, 1 failed
+Summary: 1 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantListCall: []option.Repo{
@@ -582,7 +582,7 @@ Summary: some operations failed: 1 repositories succeeded, 1 failed
 			wantOut: `Failed to update label "bug" for repository "tnagatomi/private-repo-1": forbidden
 Failed to update label "bug" for repository "tnagatomi/private-repo-2": forbidden
 
-Summary: some operations failed: 0 repositories succeeded, 2 failed
+Summary: 0 repositories succeeded, 2 failed
 `,
 			wantErr: true,
 			wantListCall: []option.Repo{
@@ -635,7 +635,7 @@ Failed to list labels for repository "tnagatomi/repo-2": repository not found
 Failed to delete label "old-label" for repository "tnagatomi/repo-3": forbidden
 Created label "bug" for repository "tnagatomi/repo-3"
 
-Summary: some operations failed: 1 repositories succeeded, 2 failed
+Summary: 1 repositories succeeded, 2 failed
 `,
 			wantErr: true,
 			wantListCall: []option.Repo{
@@ -866,7 +866,7 @@ Summary: all operations completed successfully
 			},
 			wantOut: `Failed to list labels for repository "tnagatomi/non-existent-repo": repository not found
 
-Summary: some operations failed: 0 repositories succeeded, 1 failed
+Summary: 0 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantListCall: []option.Repo{
@@ -894,7 +894,7 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 			wantOut: `Failed to delete label "bug" for repository "tnagatomi/private-repo": forbidden
 Failed to delete label "enhancement" for repository "tnagatomi/private-repo": forbidden
 
-Summary: some operations failed: 0 repositories succeeded, 1 failed
+Summary: 0 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantListCall: []option.Repo{
@@ -929,7 +929,7 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 Failed to list labels for repository "tnagatomi/repo-2": repository not found
 Deleted label "bug" for repository "tnagatomi/repo-3"
 
-Summary: some operations failed: 2 repositories succeeded, 1 failed
+Summary: 2 repositories succeeded, 1 failed
 `,
 			wantErr: true,
 			wantListCall: []option.Repo{

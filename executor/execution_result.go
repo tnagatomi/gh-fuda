@@ -87,7 +87,7 @@ func (er *ExecutionResult) Summary() string {
 		return "Summary: all operations completed successfully"
 	}
 
-	return fmt.Sprintf("Summary: some operations failed: %d repositories succeeded, %d failed", 
+	return fmt.Sprintf("Summary: %d repositories succeeded, %d failed", 
 		successCount, failCount)
 }
 

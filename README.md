@@ -21,6 +21,20 @@ Login to GitHub with `gh auth login` (ref. [gh manual of gh auth login](https://
 
 ### List of Commands
 
+#### List Labels
+
+```bash
+gh fuda list
+```
+
+List existing labels from the specified repositories.
+
+##### Example
+
+```bash
+gh fuda list -R "owner1/repo1,owner1/repo2,owner2/repo1"
+```
+
 #### Create Labels
 
 ```bash

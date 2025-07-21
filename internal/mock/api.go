@@ -21,7 +21,7 @@ type MockAPI struct {
 		Repo  option.Repo
 	}
 
-	ListLabelsFunc func(repo option.Repo) ([]string, error)
+	ListLabelsFunc func(repo option.Repo) ([]option.Label, error)
 	ListLabelsCalls []struct {
 		Repo option.Repo
 	}
@@ -66,7 +66,7 @@ func (m *MockAPI) DeleteLabel(label string, repo option.Repo) error {
 	return nil
 }
 
-func (m *MockAPI) ListLabels(repo option.Repo) ([]string, error) {
+func (m *MockAPI) ListLabels(repo option.Repo) ([]option.Label, error) {
 	m.ListLabelsCalls = append(m.ListLabelsCalls, struct {
 		Repo option.Repo
 	}{repo})

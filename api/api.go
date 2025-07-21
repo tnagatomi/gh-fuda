@@ -35,7 +35,7 @@ type APIClient interface {
 	CreateLabel(label option.Label, repo option.Repo) error
 	UpdateLabel(label option.Label, repo option.Repo) error
 	DeleteLabel(label string, repo option.Repo) error
-	ListLabels(repo option.Repo) ([]string, error)
+	ListLabels(repo option.Repo) ([]option.Label, error)
 }
 
 // API is a wrapper around the GitHub client
@@ -99,18 +99,36 @@ func (a *API) DeleteLabel(label string, repo option.Repo) error {
 	return nil
 }
 
-// ListLabels gets all label names in the repository
-func (a *API) ListLabels(repo option.Repo) ([]string, error) {
-	labels, _, err := a.client.Issues.ListLabels(context.Background(), repo.Owner, repo.Repo, nil)
-
-	if err != nil {
-		return nil, wrapGitHubError(err, ResourceTypeRepository)
+// ListLabels gets all labels in the repository
+func (a *API) ListLabels(repo option.Repo) ([]option.Label, error) {
+	var allLabels []*github.Label
+	
+	opts := &github.ListOptions{
+		PerPage: 100,
+	}
+	
+	for {
+		labels, resp, err := a.client.Issues.ListLabels(context.Background(), repo.Owner, repo.Repo, opts)
+		if err != nil {
+			return nil, wrapGitHubError(err, ResourceTypeRepository)
+		}
+		
+		allLabels = append(allLabels, labels...)
+		
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
 	}
 
-	var labelNames []string
-	for _, l := range labels {
-		labelNames = append(labelNames, l.GetName())
+	var optionLabels []option.Label
+	for _, l := range allLabels {
+		optionLabels = append(optionLabels, option.Label{
+			Name:        l.GetName(),
+			Color:       l.GetColor(),
+			Description: l.GetDescription(),
+		})
 	}
 
-	return labelNames, nil
+	return optionLabels, nil
 }

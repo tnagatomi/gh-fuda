@@ -370,7 +370,7 @@ func TestListLabels(t *testing.T) {
 		name       string
 		args       args
 		mock       func()
-		want       []string
+		want       []option.Label
 		wantErr    bool
 		wantErrMsg string
 	}{
@@ -385,10 +385,15 @@ func TestListLabels(t *testing.T) {
 			mock: func() {
 				gock.New("https://api.github.com").
 					Get("/repos/tnagatomi/mock-repo/labels").
+					MatchParam("per_page", "100").
 					Reply(200).
 					JSON([]map[string]string{{"name": "bug", "description": "This is a bug", "color": "ff0000"}, {"name": "enhancement", "description": "This is an enhancement", "color": "00ff00"}, {"name": "question", "description": "This is a question", "color": "0000ff"}})
 			},
-			want: []string{"bug", "enhancement", "question"},
+			want: []option.Label{
+				{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+				{Name: "enhancement", Color: "00ff00", Description: "This is an enhancement"},
+				{Name: "question", Color: "0000ff", Description: "This is a question"},
+			},
 			wantErr: false,
 		},
 		{
@@ -402,10 +407,11 @@ func TestListLabels(t *testing.T) {
 			mock: func() {
 				gock.New("https://api.github.com").
 					Get("/repos/tnagatomi/mock-repo/labels").
+					MatchParam("per_page", "100").
 					Reply(200).
 					JSON([]map[string]string{})
 			},
-			want: []string{},
+			want: []option.Label{},
 			wantErr: false,
 		},
 		{
@@ -419,12 +425,54 @@ func TestListLabels(t *testing.T) {
 			mock: func() {
 				gock.New("https://api.github.com").
 					Get("/repos/tnagatomi/non-existent-repo/labels").
+					MatchParam("per_page", "100").
 					Reply(404).
 					JSON(map[string]string{"message": "Not Found"})
 			},
 			want:       nil,
 			wantErr:    true,
 			wantErrMsg: "repository not found",
+		},
+		{
+			name: "pagination - multiple pages",
+			args: args{
+				repo:  option.Repo{
+					Owner: "tnagatomi",
+					Repo:  "many-labels-repo",
+				},
+			},
+			mock: func() {
+				// First page
+				gock.New("https://api.github.com").
+					Get("/repos/tnagatomi/many-labels-repo/labels").
+					MatchParam("per_page", "100").
+					Reply(200).
+					SetHeader("Link", `<https://api.github.com/repos/tnagatomi/many-labels-repo/labels?per_page=100&page=2>; rel="next", <https://api.github.com/repos/tnagatomi/many-labels-repo/labels?per_page=100&page=2>; rel="last"`).
+					JSON([]map[string]string{
+						{"name": "label1", "description": "Description 1", "color": "ff0000"},
+						{"name": "label2", "description": "Description 2", "color": "00ff00"},
+						{"name": "label3", "description": "Description 3", "color": "0000ff"},
+					})
+				
+				// Second page (last page)
+				gock.New("https://api.github.com").
+					Get("/repos/tnagatomi/many-labels-repo/labels").
+					MatchParam("per_page", "100").
+					MatchParam("page", "2").
+					Reply(200).
+					JSON([]map[string]string{
+						{"name": "label4", "description": "Description 4", "color": "ffff00"},
+						{"name": "label5", "description": "Description 5", "color": "ff00ff"},
+					})
+			},
+			want: []option.Label{
+				{Name: "label1", Color: "ff0000", Description: "Description 1"},
+				{Name: "label2", Color: "00ff00", Description: "Description 2"},
+				{Name: "label3", Color: "0000ff", Description: "Description 3"},
+				{Name: "label4", Color: "ffff00", Description: "Description 4"},
+				{Name: "label5", Color: "ff00ff", Description: "Description 5"},
+			},
+			wantErr: false,
 		},
 	}
 

@@ -60,7 +60,7 @@ gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" --json labels.json
   },
   {
     "name": "documentation",
-    "color": "0075ca",
+    "color": "07c",
     "description": "Improvements or additions to documentation"
   }
 ]

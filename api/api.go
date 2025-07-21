@@ -24,7 +24,6 @@ package api
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/google/go-github/v59/github"
@@ -64,11 +63,9 @@ func (a *API) CreateLabel(label option.Label, repo option.Repo) error {
 	if err != nil {
 		var ghErr *github.ErrorResponse
 		if errors.As(err, &ghErr) && ghErr.Response.StatusCode == 404 {
-			resource := fmt.Sprintf("repository %q", fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
-			return wrapGitHubError(err, resource)
+			return wrapGitHubError(err, ResourceTypeRepository)
 		}
-		resource := fmt.Sprintf("label %q on %q", label.Name, fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
-		return wrapGitHubError(err, resource)
+		return wrapGitHubError(err, ResourceTypeLabel)
 	}
 
 	return nil
@@ -85,8 +82,7 @@ func (a *API) UpdateLabel(label option.Label, repo option.Repo) error {
 	_, _, err := a.client.Issues.EditLabel(context.Background(), repo.Owner, repo.Repo, label.Name, githubLabel)
 
 	if err != nil {
-		resource := fmt.Sprintf("label %q on %q", label.Name, fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
-		return wrapGitHubError(err, resource)
+		return wrapGitHubError(err, ResourceTypeLabel)
 	}
 
 	return nil
@@ -97,8 +93,7 @@ func (a *API) DeleteLabel(label string, repo option.Repo) error {
 	_, err := a.client.Issues.DeleteLabel(context.Background(), repo.Owner, repo.Repo, label)
 
 	if err != nil {
-		resource := fmt.Sprintf("label %q on %q", label, fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
-		return wrapGitHubError(err, resource)
+		return wrapGitHubError(err, ResourceTypeLabel)
 	}
 
 	return nil
@@ -109,8 +104,7 @@ func (a *API) ListLabels(repo option.Repo) ([]string, error) {
 	labels, _, err := a.client.Issues.ListLabels(context.Background(), repo.Owner, repo.Repo, nil)
 
 	if err != nil {
-		resource := fmt.Sprintf("repository %q", fmt.Sprintf("%s/%s", repo.Owner, repo.Repo))
-		return nil, wrapGitHubError(err, resource)
+		return nil, wrapGitHubError(err, ResourceTypeRepository)
 	}
 
 	var labelNames []string

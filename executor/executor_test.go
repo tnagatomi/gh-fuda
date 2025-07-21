@@ -98,11 +98,11 @@ Summary: all operations completed successfully
 			},
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
-					return &api.NotFoundError{Resource: fmt.Sprintf("repository %q", repo.String())}
+					return &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 				},
 			},
-			wantOut: `Failed to create label "bug" for repository "tnagatomi/non-existent-repo": repository "tnagatomi/non-existent-repo" not found
-Failed to create label "enhancement" for repository "tnagatomi/non-existent-repo": repository "tnagatomi/non-existent-repo" not found
+			wantOut: `Failed to create label "bug" for repository "tnagatomi/non-existent-repo": repository not found
+Failed to create label "enhancement" for repository "tnagatomi/non-existent-repo": repository not found
 
 Summary: some operations failed: 0 repositories succeeded, 1 failed
 `,
@@ -149,13 +149,13 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
 					if repo.Repo == "repo-2" {
-						return &api.NotFoundError{Resource: fmt.Sprintf("repository %q", repo.String())}
+						return &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 					}
 					return nil
 				},
 			},
 			wantOut: `Created label "bug" for repository "tnagatomi/repo-1"
-Failed to create label "bug" for repository "tnagatomi/repo-2": repository "tnagatomi/repo-2" not found
+Failed to create label "bug" for repository "tnagatomi/repo-2": repository not found
 Created label "bug" for repository "tnagatomi/repo-3"
 
 Summary: some operations failed: 2 repositories succeeded, 1 failed
@@ -310,11 +310,11 @@ Summary: all operations completed successfully
 			},
 			mock: &mock.MockAPI{
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
-					return &api.NotFoundError{Resource: fmt.Sprintf("repository %q", repo.String())}
+					return &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 				},
 			},
-			wantOut: `Failed to delete label "bug" for repository "tnagatomi/non-existent-repo": repository "tnagatomi/non-existent-repo" not found
-Failed to delete label "enhancement" for repository "tnagatomi/non-existent-repo": repository "tnagatomi/non-existent-repo" not found
+			wantOut: `Failed to delete label "bug" for repository "tnagatomi/non-existent-repo": repository not found
+Failed to delete label "enhancement" for repository "tnagatomi/non-existent-repo": repository not found
 
 Summary: some operations failed: 0 repositories succeeded, 1 failed
 `,
@@ -361,13 +361,13 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 			mock: &mock.MockAPI{
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
 					if repo.Repo == "repo-2" {
-						return &api.NotFoundError{Resource: fmt.Sprintf("repository %q", repo.String())}
+						return &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 					}
 					return nil
 				},
 			},
 			wantOut: `Deleted label "bug" for repository "tnagatomi/repo-1"
-Failed to delete label "bug" for repository "tnagatomi/repo-2": repository "tnagatomi/repo-2" not found
+Failed to delete label "bug" for repository "tnagatomi/repo-2": repository not found
 Deleted label "bug" for repository "tnagatomi/repo-3"
 
 Summary: some operations failed: 2 repositories succeeded, 1 failed
@@ -529,7 +529,7 @@ Summary: all operations completed successfully
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
 					if repo.Repo == "non-existent-repo" {
-						return nil, &api.NotFoundError{Resource: fmt.Sprintf("repository %q", repo.String())}
+						return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 					}
 					return []string{}, nil
 				},
@@ -539,7 +539,7 @@ Summary: all operations completed successfully
 			},
 			wantOut: `Created label "bug" for repository "tnagatomi/mock-repo-1"
 Created label "enhancement" for repository "tnagatomi/mock-repo-1"
-Failed to list labels for repository "tnagatomi/non-existent-repo": repository "tnagatomi/non-existent-repo" not found
+Failed to list labels for repository "tnagatomi/non-existent-repo": repository not found
 
 Summary: some operations failed: 1 repositories succeeded, 1 failed
 `,
@@ -615,7 +615,7 @@ Summary: some operations failed: 0 repositories succeeded, 2 failed
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
 					if repo.Repo == "repo-2" {
-						return nil, &api.NotFoundError{Resource: fmt.Sprintf("repository %q", repo.String())}
+						return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 					}
 					return []string{"old-label"}, nil
 				},
@@ -631,7 +631,7 @@ Summary: some operations failed: 0 repositories succeeded, 2 failed
 			},
 			wantOut: `Deleted label "old-label" for repository "tnagatomi/repo-1"
 Created label "bug" for repository "tnagatomi/repo-1"
-Failed to list labels for repository "tnagatomi/repo-2": repository "tnagatomi/repo-2" not found
+Failed to list labels for repository "tnagatomi/repo-2": repository not found
 Failed to delete label "old-label" for repository "tnagatomi/repo-3": forbidden
 Created label "bug" for repository "tnagatomi/repo-3"
 
@@ -861,10 +861,10 @@ Summary: all operations completed successfully
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
-					return nil, &api.NotFoundError{Resource: fmt.Sprintf("repository %q", repo.String())}
+					return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 				},
 			},
-			wantOut: `Failed to list labels for repository "tnagatomi/non-existent-repo": repository "tnagatomi/non-existent-repo" not found
+			wantOut: `Failed to list labels for repository "tnagatomi/non-existent-repo": repository not found
 
 Summary: some operations failed: 0 repositories succeeded, 1 failed
 `,
@@ -917,7 +917,7 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
 					if repo.Repo == "repo-2" {
-						return nil, &api.NotFoundError{Resource: fmt.Sprintf("repository %q", repo.String())}
+						return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
 					}
 					return []string{"bug"}, nil
 				},
@@ -926,7 +926,7 @@ Summary: some operations failed: 0 repositories succeeded, 1 failed
 				},
 			},
 			wantOut: `Deleted label "bug" for repository "tnagatomi/repo-1"
-Failed to list labels for repository "tnagatomi/repo-2": repository "tnagatomi/repo-2" not found
+Failed to list labels for repository "tnagatomi/repo-2": repository not found
 Deleted label "bug" for repository "tnagatomi/repo-3"
 
 Summary: some operations failed: 2 repositories succeeded, 1 failed

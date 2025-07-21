@@ -139,7 +139,7 @@ func TestCreateLabel(t *testing.T) {
 					JSON(map[string]string{"message": "Not Found"})
 			},
 			wantErr:    true,
-			wantErrMsg: "repository \"tnagatomi/non-existent-repo\" not found",
+			wantErrMsg: "repository not found",
 		},
 		{
 			name: "already exists",
@@ -169,7 +169,7 @@ func TestCreateLabel(t *testing.T) {
 					})
 			},
 			wantErr:    true,
-			wantErrMsg: "label \"bug\" on \"tnagatomi/mock-repo\" already exists",
+			wantErrMsg: "label already exists",
 		},
 	}
 
@@ -244,7 +244,7 @@ func TestDeleteLabel(t *testing.T) {
 					JSON(map[string]string{"message": "Not Found"})
 			},
 			wantErr: true,
-			wantErrMsg: "label \"bug\" on \"tnagatomi/mock-repo\" not found",
+			wantErrMsg: "label not found",
 		},
 	}
 
@@ -331,7 +331,7 @@ func TestUpdateLabel(t *testing.T) {
 					JSON(map[string]string{"message": "Not Found"})
 			},
 			wantErr:    true,
-			wantErrMsg: "label \"nonexistent\" on \"tnagatomi/mock-repo\" not found",
+			wantErrMsg: "label not found",
 		},
 	}
 
@@ -424,7 +424,7 @@ func TestListLabels(t *testing.T) {
 			},
 			want:       nil,
 			wantErr:    true,
-			wantErrMsg: "repository \"tnagatomi/non-existent-repo\" not found",
+			wantErrMsg: "repository not found",
 		},
 	}
 

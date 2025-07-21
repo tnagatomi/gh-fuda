@@ -25,6 +25,7 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/tnagatomi/gh-fuda/option"
@@ -168,7 +169,7 @@ func TestLabelFromJSON(t *testing.T) {
 			}
 
 			if tt.wantErr && tt.errContains != "" {
-				if err == nil || !contains(err.Error(), tt.errContains) {
+				if err == nil || !strings.Contains(err.Error(), tt.errContains) {
 					t.Errorf("LabelFromJSON() error = %v, want error containing %q", err, tt.errContains)
 				}
 				return
@@ -195,12 +196,7 @@ func TestLabelFromJSON_FileNotFound(t *testing.T) {
 	if err == nil {
 		t.Error("LabelFromJSON() expected error for non-existent file, got nil")
 	}
-	if !contains(err.Error(), "failed to read JSON file") {
+	if !strings.Contains(err.Error(), "failed to read JSON file") {
 		t.Errorf("LabelFromJSON() error = %v, want error containing 'failed to read JSON file'", err)
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && s[:len(substr)] == substr ||
-		len(s) >= len(substr) && contains(s[1:], substr)
 }

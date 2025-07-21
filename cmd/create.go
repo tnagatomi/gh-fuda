@@ -22,13 +22,18 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"io"
+	"os"
+
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
-	"io"
-	"os"
+	"github.com/tnagatomi/gh-fuda/option"
+	"github.com/tnagatomi/gh-fuda/parser"
 )
+
 
 // NewCreateCmd initialize the create command
 func NewCreateCmd(out io.Writer) *cobra.Command {
@@ -36,6 +41,32 @@ func NewCreateCmd(out io.Writer) *cobra.Command {
 		Use:   "create",
 		Short: "Create specified labels to the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if jsonPath != "" && labels != "" {
+				return errors.New("--labels (-l) and --json cannot be used together")
+			}
+			if jsonPath == "" && labels == "" {
+				return errors.New("either --labels (-l) or --json must be specified")
+			}
+
+			var labelList []option.Label
+			var err error
+			if jsonPath != "" {
+				labelList, err = parser.LabelFromJSON(jsonPath)
+				if err != nil {
+					return fmt.Errorf("failed to parse JSON file: %v", err)
+				}
+			} else {
+				labelList, err = parser.Label(labels)
+				if err != nil {
+					return fmt.Errorf("failed to parse labels option: %v", err)
+				}
+			}
+
+			repoList, err := parser.Repo(repos)
+			if err != nil {
+				return fmt.Errorf("failed to parse repos option: %v", err)
+			}
+
 			client, err := api.NewHTTPClient(api.ClientOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create gh http client: %v", err)
@@ -43,10 +74,10 @@ func NewCreateCmd(out io.Writer) *cobra.Command {
 
 			e, err := executor.NewExecutor(client, dryRun)
 			if err != nil {
-				return fmt.Errorf("failed to create exector: %v", err)
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
-			err = e.Create(out, repos, labels)
+			err = e.Create(out, repoList, labelList)
 			if err != nil {
 				return fmt.Errorf("failed to create labels: %v", err)
 			}
@@ -62,9 +93,5 @@ func init() {
 	rootCmd.AddCommand(createCmd)
 
 	createCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to create in the format of 'label1:color1:description1[,label2:color2:description2,...]' (description can be omitted)")
-
-	err := createCmd.MarkFlagRequired("labels")
-	if err != nil {
-		fmt.Printf("Failed to mark flag required: %v\n", err)
-	}
+	createCmd.Flags().StringVar(&jsonPath, "json", "", "Specify the path to a JSON file containing labels to create")
 }

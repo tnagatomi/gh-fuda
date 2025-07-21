@@ -22,11 +22,15 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/tnagatomi/gh-fuda/executor"
 	"io"
 	"os"
+
+	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/tnagatomi/gh-fuda/executor"
+	"github.com/tnagatomi/gh-fuda/option"
+	"github.com/tnagatomi/gh-fuda/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -37,6 +41,32 @@ func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 		Use:   "sync",
 		Short: "Sync the labels in the specified repositories with the specified labels",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if jsonPath != "" && labels != "" {
+				return errors.New("--labels (-l) and --json cannot be used together")
+			}
+			if jsonPath == "" && labels == "" {
+				return errors.New("either --labels (-l) or --json must be specified")
+			}
+
+			var labelList []option.Label
+			var err error
+			if jsonPath != "" {
+				labelList, err = parser.LabelFromJSON(jsonPath)
+				if err != nil {
+					return fmt.Errorf("failed to parse JSON file: %v", err)
+				}
+			} else {
+				labelList, err = parser.Label(labels)
+				if err != nil {
+					return fmt.Errorf("failed to parse labels option: %v", err)
+				}
+			}
+
+			repoList, err := parser.Repo(repos)
+			if err != nil {
+				return fmt.Errorf("failed to parse repos option: %v", err)
+			}
+
 			client, err := api.NewHTTPClient(api.ClientOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to create gh http client: %v", err)
@@ -44,7 +74,7 @@ func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 
 			e, err := executor.NewExecutor(client, dryRun)
 			if err != nil {
-				return fmt.Errorf("failed to create exector: %v", err)
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
 			if !dryRun && !force {
@@ -58,7 +88,7 @@ func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 				}
 			}
 
-			err = e.Sync(out, repos, labels)
+			err = e.Sync(out, repoList, labelList)
 			if err != nil {
 				return fmt.Errorf("failed to sync labels: %v", err)
 			}
@@ -74,10 +104,6 @@ func init() {
 	rootCmd.AddCommand(syncCmd)
 
 	syncCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to set in the format of 'label1:color1:description1[,label2:color2:description2,...]' (description can be omitted)")
+	syncCmd.Flags().StringVar(&jsonPath, "json", "", "Specify the path to a JSON file containing labels to sync")
 	syncCmd.Flags().BoolVar(&force, "force", false, "Do not prompt for confirmation")
-
-	err := syncCmd.MarkFlagRequired("labels")
-	if err != nil {
-		fmt.Printf("Failed to mark flag required: %v\n", err)
-	}
 }

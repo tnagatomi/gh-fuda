@@ -25,11 +25,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/tnagatomi/gh-fuda/api"
 	"github.com/tnagatomi/gh-fuda/option"
-	"github.com/tnagatomi/gh-fuda/parser"
 )
 
 // Executor composites github.Client and has dry-run option
@@ -52,16 +50,7 @@ func NewExecutor(client *http.Client, dryrun bool) (*Executor, error) {
 }
 
 // Create creates labels across multiple repositories
-func (e *Executor) Create(out io.Writer, repoOption string, labelOption string) error {
-	labels, err := parser.Label(labelOption)
-	if err != nil {
-		return fmt.Errorf("failed to parse label option: %v", err)
-	}
-	repos, err := parser.Repo(repoOption)
-	if err != nil {
-		return fmt.Errorf("failed to parse repo option: %v", err)
-	}
-
+func (e *Executor) Create(out io.Writer, repos []option.Repo, labels []option.Label) error {
 	er := NewExecutionResult()
 
 	for _, repo := range repos {
@@ -76,7 +65,7 @@ func (e *Executor) Create(out io.Writer, repoOption string, labelOption string) 
 				continue
 			}
 
-			err = e.api.CreateLabel(label, repo)
+			err := e.api.CreateLabel(label, repo)
 			if err != nil {
 				repoResult.Errors = append(repoResult.Errors, err)
 				_, _ = fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
@@ -98,14 +87,7 @@ func (e *Executor) Create(out io.Writer, repoOption string, labelOption string) 
 }
 
 // Delete deletes labels across multiple repositories
-func (e *Executor) Delete(out io.Writer, repoOption string, labelOption string) error {
-	labels := strings.Split(labelOption, ",")
-
-	repos, err := parser.Repo(repoOption)
-	if err != nil {
-		return fmt.Errorf("failed to parse repo option: %v", err)
-	}
-
+func (e *Executor) Delete(out io.Writer, repos []option.Repo, labels []string) error {
 	er := NewExecutionResult()
 
 	for _, repo := range repos {
@@ -120,7 +102,7 @@ func (e *Executor) Delete(out io.Writer, repoOption string, labelOption string) 
 				continue
 			}
 
-			err = e.api.DeleteLabel(label, repo)
+			err := e.api.DeleteLabel(label, repo)
 			if err != nil {
 				repoResult.Errors = append(repoResult.Errors, err)
 				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", label, repo, err)
@@ -142,17 +124,7 @@ func (e *Executor) Delete(out io.Writer, repoOption string, labelOption string) 
 }
 
 // Sync sync labels across multiple repositories
-func (e *Executor) Sync(out io.Writer, repoOption string, labelOption string) error {
-	repos, err := parser.Repo(repoOption)
-	if err != nil {
-		return fmt.Errorf("failed to parse repo option: %v", err)
-	}
-
-	labels, err := parser.Label(labelOption)
-	if err != nil {
-		return fmt.Errorf("failed to parse label option: %v", err)
-	}
-
+func (e *Executor) Sync(out io.Writer, repos []option.Repo, labels []option.Label) error {
 	er := NewExecutionResult()
 
 	for _, repo := range repos {
@@ -237,12 +209,7 @@ func (e *Executor) Sync(out io.Writer, repoOption string, labelOption string) er
 }
 
 // Empty empties labels across multiple repositories
-func (e *Executor) Empty(out io.Writer, repoOption string) error {
-	repos, err := parser.Repo(repoOption)
-	if err != nil {
-		return fmt.Errorf("failed to parse repo option: %v", err)
-	}
-
+func (e *Executor) Empty(out io.Writer, repos []option.Repo) error {
 	er := NewExecutionResult()
 
 	results := e.emptyLabels(out, repos)
@@ -279,7 +246,7 @@ func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) []*RepoResult
 				continue
 			}
 
-			err = e.api.DeleteLabel(label, repo)
+			err := e.api.DeleteLabel(label, repo)
 			if err != nil {
 				repoResult.Errors = append(repoResult.Errors, err)
 				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", label, repo, err)

@@ -12,8 +12,8 @@ import (
 
 func TestCreate(t *testing.T) {
 	type args struct {
-		repoOption  string
-		labelOption string
+		repos  []option.Repo
+		labels []option.Label
 	}
 	tests := []struct {
 		name    string
@@ -31,8 +31,14 @@ func TestCreate(t *testing.T) {
 			name:   "single repository",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo",
-				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement,question:0000ff:This is a question",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "This is an enhancement"},
+					{Name: "question", Color: "0000ff", Description: "This is a question"},
+				},
 			},
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
@@ -59,8 +65,15 @@ Summary: all operations completed successfully
 			name:   "multiple repository", 
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
-				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement,question:0000ff:This is a question",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo-1"},
+					{Owner: "tnagatomi", Repo: "mock-repo-2"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "This is an enhancement"},
+					{Name: "question", Color: "0000ff", Description: "This is a question"},
+				},
 			},
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
@@ -93,8 +106,13 @@ Summary: all operations completed successfully
 			name:   "repository not found error",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/non-existent-repo",
-				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "non-existent-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "This is an enhancement"},
+				},
 			},
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
@@ -119,8 +137,12 @@ Summary: 0 repositories succeeded, 1 failed
 			name:   "permission error",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/private-repo",
-				labelOption: "bug:ff0000:This is a bug",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "private-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+				},
 			},
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
@@ -143,8 +165,14 @@ Summary: 0 repositories succeeded, 1 failed
 			name:   "multiple repositories with partial failure",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/repo-1,tnagatomi/repo-2,tnagatomi/repo-3",
-				labelOption: "bug:ff0000:This is a bug",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "repo-1"},
+					{Owner: "tnagatomi", Repo: "repo-2"},
+					{Owner: "tnagatomi", Repo: "repo-3"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+				},
 			},
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
@@ -174,8 +202,14 @@ Summary: 2 repositories succeeded, 1 failed
 			name:   "dry-run",
 			dryrun: true,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo",
-				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement,question:0000ff:This is a question",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "This is an enhancement"},
+					{Name: "question", Color: "0000ff", Description: "This is a question"},
+				},
 			},
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
@@ -201,7 +235,7 @@ Would create label "question" for repository "tnagatomi/mock-repo"
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err := e.Create(out, tt.args.repoOption, tt.args.labelOption)
+			err := e.Create(out, tt.args.repos, tt.args.labels)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -224,8 +258,8 @@ Would create label "question" for repository "tnagatomi/mock-repo"
 
 func TestDelete(t *testing.T) {
 	type args struct {
-		repoOption  string
-		labelOption string
+		repos  []option.Repo
+		labels []string
 	}
 	tests := []struct {
 		name    string
@@ -243,8 +277,10 @@ func TestDelete(t *testing.T) {
 			name:   "single repository",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo",
-				labelOption: "bug,enhancement,question",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []string{"bug", "enhancement", "question"},
 			},
 			mock: &mock.MockAPI{
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
@@ -271,8 +307,11 @@ Summary: all operations completed successfully
 			name:   "multiple repositories",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
-				labelOption: "bug,enhancement,question",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo-1"},
+					{Owner: "tnagatomi", Repo: "mock-repo-2"},
+				},
+				labels: []string{"bug", "enhancement", "question"},
 			},
 			mock: &mock.MockAPI{
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
@@ -305,8 +344,10 @@ Summary: all operations completed successfully
 			name:   "repository not found error",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/non-existent-repo",
-				labelOption: "bug,enhancement",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "non-existent-repo"},
+				},
+				labels: []string{"bug", "enhancement"},
 			},
 			mock: &mock.MockAPI{
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
@@ -331,8 +372,10 @@ Summary: 0 repositories succeeded, 1 failed
 			name:   "permission error",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/private-repo",
-				labelOption: "bug",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "private-repo"},
+				},
+				labels: []string{"bug"},
 			},
 			mock: &mock.MockAPI{
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
@@ -355,8 +398,12 @@ Summary: 0 repositories succeeded, 1 failed
 			name:   "multiple repositories with partial failure",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/repo-1,tnagatomi/repo-2,tnagatomi/repo-3",
-				labelOption: "bug",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "repo-1"},
+					{Owner: "tnagatomi", Repo: "repo-2"},
+					{Owner: "tnagatomi", Repo: "repo-3"},
+				},
+				labels: []string{"bug"},
 			},
 			mock: &mock.MockAPI{
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
@@ -386,8 +433,10 @@ Summary: 2 repositories succeeded, 1 failed
 			name:   "dry-run",
 			dryrun: true,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo",
-				labelOption: "bug,enhancement,question",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []string{"bug", "enhancement", "question"},
 			},
 			mock: &mock.MockAPI{
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
@@ -413,7 +462,7 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err := e.Delete(out, tt.args.repoOption, tt.args.labelOption)
+			err := e.Delete(out, tt.args.repos, tt.args.labels)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -435,8 +484,8 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 
 func TestSync(t *testing.T) {
 	type args struct {
-		repoOption  string
-		labelOption string
+		repos  []option.Repo
+		labels []option.Label
 	}
 	tests := []struct {
 		name    string
@@ -463,8 +512,14 @@ func TestSync(t *testing.T) {
 			name:   "multiple repositories with different existing labels",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
-				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo-1"},
+					{Owner: "tnagatomi", Repo: "mock-repo-2"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "This is an enhancement"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -523,8 +578,14 @@ Summary: all operations completed successfully
 			name:   "repository not found on list labels",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/non-existent-repo",
-				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo-1"},
+					{Owner: "tnagatomi", Repo: "non-existent-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "This is an enhancement"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -568,8 +629,13 @@ Summary: 1 repositories succeeded, 1 failed
 			name:   "permission error on update",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/private-repo-1,tnagatomi/private-repo-2",
-				labelOption: "bug:ff0000:This is a bug",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "private-repo-1"},
+					{Owner: "tnagatomi", Repo: "private-repo-2"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -609,8 +675,14 @@ Summary: 0 repositories succeeded, 2 failed
 			name:   "mixed errors during sync",
 			dryrun: false,
 			args: args{
-				repoOption:  "tnagatomi/repo-1,tnagatomi/repo-2,tnagatomi/repo-3",
-				labelOption: "bug:ff0000:This is a bug",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "repo-1"},
+					{Owner: "tnagatomi", Repo: "repo-2"},
+					{Owner: "tnagatomi", Repo: "repo-3"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -666,8 +738,14 @@ Summary: 1 repositories succeeded, 2 failed
 			name:   "dry-run",
 			dryrun: true,
 			args: args{
-				repoOption:  "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
-				labelOption: "bug:ff0000:This is a bug,enhancement:00ff00:This is an enhancement",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo-1"},
+					{Owner: "tnagatomi", Repo: "mock-repo-2"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "This is a bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "This is an enhancement"},
+				},
 			},
 			mock: &mock.MockAPI{
 				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
@@ -716,7 +794,7 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo-2"
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err := e.Sync(out, tt.args.repoOption, tt.args.labelOption)
+			err := e.Sync(out, tt.args.repos, tt.args.labels)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -762,7 +840,7 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo-2"
 
 func TestEmpty(t *testing.T) {
 	type args struct {
-		repoOption string
+		repos []option.Repo
 	}
 	tests := []struct {
 		name    string
@@ -781,7 +859,9 @@ func TestEmpty(t *testing.T) {
 			name:   "single repository",
 			dryrun: false,
 			args: args{
-				repoOption: "tnagatomi/mock-repo",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -814,7 +894,10 @@ Summary: all operations completed successfully
 			name:   "multiple repository",
 			dryrun: false,
 			args: args{
-				repoOption: "tnagatomi/mock-repo-1,tnagatomi/mock-repo-2",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo-1"},
+					{Owner: "tnagatomi", Repo: "mock-repo-2"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -857,7 +940,9 @@ Summary: all operations completed successfully
 			name:   "repository not found on list",
 			dryrun: false,
 			args: args{
-				repoOption: "tnagatomi/non-existent-repo",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "non-existent-repo"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -881,7 +966,9 @@ Summary: 0 repositories succeeded, 1 failed
 			name:   "permission error on delete",
 			dryrun: false,
 			args: args{
-				repoOption: "tnagatomi/private-repo",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "private-repo"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -912,7 +999,11 @@ Summary: 0 repositories succeeded, 1 failed
 			name:   "multiple repositories with partial failure",
 			dryrun: false,
 			args: args{
-				repoOption: "tnagatomi/repo-1,tnagatomi/repo-2,tnagatomi/repo-3",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "repo-1"},
+					{Owner: "tnagatomi", Repo: "repo-2"},
+					{Owner: "tnagatomi", Repo: "repo-3"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -949,7 +1040,9 @@ Summary: 2 repositories succeeded, 1 failed
 			name:   "dry-run",
 			dryrun: true,
 			args: args{
-				repoOption: "tnagatomi/mock-repo",
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
 			},
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]string, error) {
@@ -981,7 +1074,7 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err := e.Empty(out, tt.args.repoOption)
+			err := e.Empty(out, tt.args.repos)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -23,10 +23,13 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/tnagatomi/gh-fuda/executor"
 	"io"
 	"os"
+	"strings"
+
+	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/tnagatomi/gh-fuda/executor"
+	"github.com/tnagatomi/gh-fuda/parser"
 
 	"github.com/spf13/cobra"
 )
@@ -44,8 +47,15 @@ func NewDeleteCmd(in io.Reader, out io.Writer) *cobra.Command {
 
 			e, err := executor.NewExecutor(client, dryRun)
 			if err != nil {
-				return fmt.Errorf("failed to create exector: %v", err)
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
+
+			repoList, err := parser.Repo(repos)
+			if err != nil {
+				return fmt.Errorf("failed to parse repos option: %v", err)
+			}
+
+			labelList := strings.Split(labels, ",")
 
 			if !dryRun && !force {
 				confirmed, err := confirm(in, out)
@@ -58,7 +68,7 @@ func NewDeleteCmd(in io.Reader, out io.Writer) *cobra.Command {
 				}
 			}
 
-			err = e.Delete(out, repos, labels)
+			err = e.Delete(out, repoList, labelList)
 			if err != nil {
 				return fmt.Errorf("failed to delete labels: %v", err)
 			}

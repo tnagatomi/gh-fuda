@@ -38,7 +38,8 @@ The codebase follows a clean layered architecture:
    - Defines `APIClient` interface for testability
    - Wraps google/go-github client
    - All API operations go through this layer
-   - Provides custom error types (`NotFoundError`, `ForbiddenError`, etc.) for better error handling
+   - Provides custom error types (`NotFoundError`, `ForbiddenError`, etc.) with `ResourceType` enum for better error categorization
+   - Error messages are simplified (e.g., "repository not found" instead of full details)
 
 4. **parser/** - Command-line option parsing
    - Handles file-based input for labels and repositories
@@ -87,9 +88,11 @@ func TestFunctionName(t *testing.T) {
 
 - Operations continue even if individual label operations fail
 - Errors are collected using `ExecutionResult` structure
-- Summary is displayed at the end showing success/failure counts
+- Summary is displayed at the end showing success/failure counts (format: "Summary: X repositories succeeded, Y failed")
 - Exit code 1 if any operations failed
-- Custom error types for common GitHub API errors (404, 403, etc.)
+- Custom error types for common GitHub API errors (404, 403, etc.) with `ResourceType` enum to distinguish between repository and label errors
+- Simplified error messages without redundant details (e.g., "repository not found" instead of "repository 'owner/repo' not found")
+- Command usage is not displayed for runtime errors (only for argument/flag errors)
 
 ## CI/CD
 

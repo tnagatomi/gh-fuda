@@ -146,7 +146,7 @@ func (e *Executor) Sync(out io.Writer, repos []option.Repo, labels []option.Labe
 
 		// Delete labels not in the new set
 		for _, existing := range existingLabels {
-			if labelNameExists(existing.Name, labels) {
+			if labelExists(existing.Name, labels) {
 				continue
 			}
 
@@ -298,16 +298,6 @@ func (e *Executor) emptyLabels(out io.Writer, repos []option.Repo) []*RepoResult
 	}
 
 	return results
-}
-
-// labelNameExists checks if a label name exists in a slice of labels
-func labelNameExists(name string, labels []option.Label) bool {
-	for _, label := range labels {
-		if name == label.Name {
-			return true
-		}
-	}
-	return false
 }
 
 // labelExists checks if a label name exists in a slice of labels

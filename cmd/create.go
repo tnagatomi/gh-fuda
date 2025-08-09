@@ -22,7 +22,6 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +29,6 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
-	"github.com/tnagatomi/gh-fuda/option"
 	"github.com/tnagatomi/gh-fuda/parser"
 )
 
@@ -41,42 +39,9 @@ func NewCreateCmd(out io.Writer) *cobra.Command {
 		Use:   "create",
 		Short: "Create specified labels to the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Check that only one input method is specified
-			inputCount := 0
-			if labels != "" {
-				inputCount++
-			}
-			if jsonPath != "" {
-				inputCount++
-			}
-			if yamlPath != "" {
-				inputCount++
-			}
-			
-			if inputCount > 1 {
-				return errors.New("--labels (-l), --json, and --yaml cannot be used together")
-			}
-			if inputCount == 0 {
-				return errors.New("one of --labels (-l), --json, or --yaml must be specified")
-			}
-
-			var labelList []option.Label
-			var err error
-			if jsonPath != "" {
-				labelList, err = parser.LabelFromJSON(jsonPath)
-				if err != nil {
-					return fmt.Errorf("failed to parse JSON file: %v", err)
-				}
-			} else if yamlPath != "" {
-				labelList, err = parser.LabelFromYAML(yamlPath)
-				if err != nil {
-					return fmt.Errorf("failed to parse YAML file: %v", err)
-				}
-			} else {
-				labelList, err = parser.Label(labels)
-				if err != nil {
-					return fmt.Errorf("failed to parse labels option: %v", err)
-				}
+			labelList, err := parseLabelsInput(labels, jsonPath, yamlPath)
+			if err != nil {
+				return err
 			}
 
 			repoList, err := parser.Repo(repos)

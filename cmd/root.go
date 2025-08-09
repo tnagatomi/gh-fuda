@@ -33,6 +33,7 @@ var (
 	force  bool
 	labels string
 	jsonPath string
+	yamlPath string
 )
 
 // rootCmd represents the base command when called without any subcommands

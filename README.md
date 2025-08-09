@@ -47,6 +47,9 @@ Create specified labels to the specified repositories.
 
 - `-l`, `--labels`: Specify the labels to create in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
 - `--json`: Specify the path to a JSON file containing labels to create
+- `--yaml`: Specify the path to a YAML file containing labels to create
+
+**Note**: `--json`, `--yaml`, and `-l/--labels` flags are mutually exclusive. You must use exactly one of these options.
 
 ##### Example
 
@@ -56,6 +59,9 @@ gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:des
 
 # Using JSON file
 gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" --json labels.json
+
+# Using YAML file
+gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" --yaml labels.yaml
 ```
 
 ##### JSON File Format
@@ -78,6 +84,20 @@ gh fuda create -R "owner1/repo1,owner1/repo2,owner2/repo1" --json labels.json
     "description": "Improvements or additions to documentation"
   }
 ]
+```
+
+##### YAML File Format
+
+```yaml
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+- name: documentation
+  color: 07c
+  description: Improvements or additions to documentation
 ```
 
 #### Delete Labels
@@ -111,7 +131,10 @@ Sync the labels in the specified repositories with the specified labels.
 
 - `-l`, `--labels`: Specify the labels to set in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
 - `--json`: Specify the path to a JSON file containing labels to sync
+- `--yaml`: Specify the path to a YAML file containing labels to sync
 - `--force`: Do not prompt for confirmation
+
+**Note**: `--json`, `--yaml`, and `-l/--labels` flags are mutually exclusive. You must use exactly one of these options.
 
 ##### Example
 
@@ -121,11 +144,14 @@ gh fuda sync -R "owner1/repo1,owner1/repo2,owner2/repo1" -l "label1:ff0000:descr
 
 # Using JSON file
 gh fuda sync -R "owner1/repo1,owner1/repo2,owner2/repo1" --json labels.json
+
+# Using YAML file
+gh fuda sync -R "owner1/repo1,owner1/repo2,owner2/repo1" --yaml labels.yaml
 ```
 
-##### JSON File Format
+##### File Formats
 
-The JSON file format is the same as the one used for the `create` command. See the [Create Labels](#create-labels) section for details.
+The JSON and YAML file formats are the same as those used for the `create` command. See the [Create Labels](#create-labels) section for details.
 
 #### Empty Labels
 

@@ -23,8 +23,12 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
+
+	"github.com/tnagatomi/gh-fuda/option"
+	"github.com/tnagatomi/gh-fuda/parser"
 )
 
 // confirm asks user to really execute a command
@@ -40,4 +44,47 @@ func confirm(in io.Reader, out io.Writer) (bool, error) {
 		return true, nil
 	}
 	return false, nil
+}
+
+// parseLabelsInput validates and parses label input from various sources (--labels, --json, or --yaml flags)
+func parseLabelsInput(labels, jsonPath, yamlPath string) ([]option.Label, error) {
+	// Check that only one input method is specified
+	inputCount := 0
+	if labels != "" {
+		inputCount++
+	}
+	if jsonPath != "" {
+		inputCount++
+	}
+	if yamlPath != "" {
+		inputCount++
+	}
+	
+	if inputCount > 1 {
+		return nil, errors.New("--labels (-l), --json, and --yaml cannot be used together")
+	}
+	if inputCount == 0 {
+		return nil, errors.New("one of --labels (-l), --json, or --yaml must be specified")
+	}
+
+	var labelList []option.Label
+	var err error
+	if jsonPath != "" {
+		labelList, err = parser.LabelFromJSON(jsonPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse JSON file: %v", err)
+		}
+	} else if yamlPath != "" {
+		labelList, err = parser.LabelFromYAML(yamlPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse YAML file: %v", err)
+		}
+	} else {
+		labelList, err = parser.Label(labels)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse labels option: %v", err)
+		}
+	}
+
+	return labelList, nil
 }

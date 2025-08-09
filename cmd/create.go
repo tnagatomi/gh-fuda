@@ -22,7 +22,6 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +29,6 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
-	"github.com/tnagatomi/gh-fuda/option"
 	"github.com/tnagatomi/gh-fuda/parser"
 )
 
@@ -41,25 +39,9 @@ func NewCreateCmd(out io.Writer) *cobra.Command {
 		Use:   "create",
 		Short: "Create specified labels to the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if jsonPath != "" && labels != "" {
-				return errors.New("--labels (-l) and --json cannot be used together")
-			}
-			if jsonPath == "" && labels == "" {
-				return errors.New("either --labels (-l) or --json must be specified")
-			}
-
-			var labelList []option.Label
-			var err error
-			if jsonPath != "" {
-				labelList, err = parser.LabelFromJSON(jsonPath)
-				if err != nil {
-					return fmt.Errorf("failed to parse JSON file: %v", err)
-				}
-			} else {
-				labelList, err = parser.Label(labels)
-				if err != nil {
-					return fmt.Errorf("failed to parse labels option: %v", err)
-				}
+			labelList, err := parseLabelsInput(labels, jsonPath, yamlPath)
+			if err != nil {
+				return err
 			}
 
 			repoList, err := parser.Repo(repos)
@@ -94,4 +76,5 @@ func init() {
 
 	createCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to create in the format of 'label1:color1:description1[,label2:color2:description2,...]' (description can be omitted)")
 	createCmd.Flags().StringVar(&jsonPath, "json", "", "Specify the path to a JSON file containing labels to create")
+	createCmd.Flags().StringVar(&yamlPath, "yaml", "", "Specify the path to a YAML file containing labels to create")
 }

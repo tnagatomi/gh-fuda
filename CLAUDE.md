@@ -105,9 +105,11 @@ func TestFunctionName(t *testing.T) {
 - Simplified error messages without redundant details (e.g., "repository not found" instead of "repository 'owner/repo' not found")
 - Command usage is not displayed for runtime errors (only for argument/flag errors)
 
-## JSON File Support
+## File Input Support
 
-The `create` and `sync` commands support JSON file input for labels:
+The `create` and `sync` commands support both JSON and YAML file input for labels.
+
+### JSON Format
 
 ```json
 [
@@ -124,11 +126,25 @@ The `create` and `sync` commands support JSON file input for labels:
 ]
 ```
 
-Usage:
-- `gh fuda create -R owner/repo --json labels.json`
-- `gh fuda sync -R owner/repo --json labels.json`
+### YAML Format
 
-Note: `--json` and `-l/--labels` flags are mutually exclusive.
+```yaml
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+```
+
+### Usage
+
+- `gh fuda create -R owner/repo --json labels.json`
+- `gh fuda create -R owner/repo --yaml labels.yaml`
+- `gh fuda sync -R owner/repo --json labels.json`
+- `gh fuda sync -R owner/repo --yaml labels.yaml`
+
+Note: `--json`, `--yaml`, and `-l/--labels` flags are mutually exclusive. You must use exactly one of these options.
 
 ## CI/CD
 

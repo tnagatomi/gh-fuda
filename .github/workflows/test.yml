@@ -5,6 +5,7 @@ on:
       - "**/*.go"
       - "go.mod"
       - "go.sum"
+      - ".github/workflows/*.yml"
 jobs:
   test-ubuntu:
     name: Test on Ubuntu

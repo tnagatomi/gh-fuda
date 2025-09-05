@@ -7,7 +7,8 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v59 v59.0.0
 	github.com/h2non/gock v1.2.0
-	github.com/spf13/cobra v1.9.1
+	github.com/spf13/cobra v1.10.1
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -23,10 +24,9 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
+	github.com/spf13/pflag v1.0.9 // indirect
 	github.com/thlib/go-timezone-local v0.0.0-20210907160436-ef149e42d28e // indirect
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

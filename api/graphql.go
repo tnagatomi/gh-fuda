@@ -75,6 +75,34 @@ func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (string, error) {
 	return query.Repository.ID, nil
 }
 
+// GetLabelID fetches the GraphQL node ID for a label in a repository
+func (g *GraphQLAPI) GetLabelID(repo option.Repo, labelName string) (string, error) {
+	var query struct {
+		Repository struct {
+			Label struct {
+				ID string
+			} `graphql:"label(name: $labelName)"`
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+
+	variables := map[string]any{
+		"owner":     repo.Owner,
+		"name":      repo.Repo,
+		"labelName": labelName,
+	}
+
+	err := g.client.Query("LabelID", &query, variables)
+	if err != nil {
+		return "", wrapGraphQLError(err, ResourceTypeLabel)
+	}
+
+	if query.Repository.Label.ID == "" {
+		return "", &NotFoundError{ResourceType: ResourceTypeLabel}
+	}
+
+	return query.Repository.Label.ID, nil
+}
+
 // wrapGraphQLError converts GraphQL API errors to custom error types
 func wrapGraphQLError(err error, resourceType ResourceType) error {
 	if err == nil {

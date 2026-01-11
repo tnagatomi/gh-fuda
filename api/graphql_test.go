@@ -174,3 +174,109 @@ func TestGraphQLAPI_GetRepositoryID_Cache(t *testing.T) {
 		t.Errorf("after second call, httpCallCount = %d, want 1 (cache should be used)", httpCallCount)
 	}
 }
+
+func TestGraphQLAPI_GetLabelID(t *testing.T) {
+	tests := []struct {
+		name       string
+		repo       option.Repo
+		labelName  string
+		mock       func()
+		want       string
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name:      "success",
+			repo:      option.Repo{Owner: "owner", Repo: "repo"},
+			labelName: "bug",
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"label": map[string]any{
+									"id": "LA_123456",
+								},
+							},
+						},
+					})
+			},
+			want:    "LA_123456",
+			wantErr: false,
+		},
+		{
+			name:      "label not found",
+			repo:      option.Repo{Owner: "owner", Repo: "repo"},
+			labelName: "nonexistent",
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"label": nil,
+							},
+						},
+					})
+			},
+			want:       "",
+			wantErr:    true,
+			wantErrMsg: "label not found",
+		},
+		{
+			name:      "repository not found",
+			repo:      option.Repo{Owner: "owner", Repo: "nonexistent"},
+			labelName: "bug",
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "NOT_FOUND",
+								"message": "Could not resolve to a Repository with the name 'nonexistent'.",
+							},
+						},
+					})
+			},
+			want:       "",
+			wantErr:    true,
+			wantErrMsg: "repository not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer gock.Off()
+			if tt.mock != nil {
+				tt.mock()
+			}
+
+			g := newTestGraphQLAPI(t)
+			got, err := g.GetLabelID(tt.repo, tt.labelName)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetLabelID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err.Error() != tt.wantErrMsg {
+				t.Errorf("GetLabelID() error = %v, wantErrMsg %v", err.Error(), tt.wantErrMsg)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("GetLabelID() = %v, want %v", got, tt.want)
+			}
+
+			if !gock.IsDone() {
+				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			}
+		})
+	}
+}

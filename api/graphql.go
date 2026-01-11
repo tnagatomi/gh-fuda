@@ -313,6 +313,14 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 	return fmt.Errorf("GraphQL API error: %s", errMsg)
 }
 
+// escapeSearchQuery escapes special characters in a string for use in GitHub search queries.
+// It escapes backslashes and double quotes to prevent query injection.
+func escapeSearchQuery(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	return s
+}
+
 // SearchLabelables searches for issues, pull requests, and discussions with a specific label
 func (g *GraphQLAPI) SearchLabelables(repo option.Repo, labelName string) ([]option.Labelable, error) {
 	var allLabelables []option.Labelable
@@ -337,7 +345,7 @@ func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]o
 	var allLabelables []option.Labelable
 	var cursor *string
 
-	searchQuery := fmt.Sprintf("repo:%s/%s label:\"%s\"", repo.Owner, repo.Repo, labelName)
+	searchQuery := fmt.Sprintf("repo:%s/%s label:\"%s\"", repo.Owner, repo.Repo, escapeSearchQuery(labelName))
 
 	for {
 		var query struct {
@@ -409,7 +417,7 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 	var allLabelables []option.Labelable
 	var cursor *string
 
-	searchQuery := fmt.Sprintf("repo:%s/%s label:\"%s\"", repo.Owner, repo.Repo, labelName)
+	searchQuery := fmt.Sprintf("repo:%s/%s label:\"%s\"", repo.Owner, repo.Repo, escapeSearchQuery(labelName))
 
 	for {
 		var query struct {

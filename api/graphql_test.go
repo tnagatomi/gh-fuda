@@ -1420,3 +1420,46 @@ func TestGraphQLAPI_RemoveLabelsFromLabelable(t *testing.T) {
 		})
 	}
 }
+
+func TestEscapeSearchQuery(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "no special characters",
+			input: "bug",
+			want:  "bug",
+		},
+		{
+			name:  "double quotes",
+			input: `label with "quotes"`,
+			want:  `label with \"quotes\"`,
+		},
+		{
+			name:  "backslash",
+			input: `label\with\backslashes`,
+			want:  `label\\with\\backslashes`,
+		},
+		{
+			name:  "both quotes and backslashes",
+			input: `label "with" \both`,
+			want:  `label \"with\" \\both`,
+		},
+		{
+			name:  "empty string",
+			input: "",
+			want:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := escapeSearchQuery(tt.input)
+			if got != tt.want {
+				t.Errorf("escapeSearchQuery(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

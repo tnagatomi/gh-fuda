@@ -24,6 +24,7 @@ package api
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/tnagatomi/gh-fuda/option"
@@ -34,6 +35,7 @@ type GraphQLAPI struct {
 	client *api.GraphQLClient
 	// Cache for repository IDs to avoid redundant queries
 	repoIDCache map[string]string
+	repoIDMu    sync.RWMutex
 }
 
 // NewGraphQLAPI creates a new GraphQL API client
@@ -51,9 +53,14 @@ func NewGraphQLAPI() (*GraphQLAPI, error) {
 // GetRepositoryID fetches the GraphQL node ID for a repository
 func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (string, error) {
 	cacheKey := repo.String()
+
+	// Check cache with read lock
+	g.repoIDMu.RLock()
 	if id, ok := g.repoIDCache[cacheKey]; ok {
+		g.repoIDMu.RUnlock()
 		return id, nil
 	}
+	g.repoIDMu.RUnlock()
 
 	var query struct {
 		Repository struct {
@@ -71,7 +78,11 @@ func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (string, error) {
 		return "", wrapGraphQLError(err, ResourceTypeRepository)
 	}
 
+	// Store in cache with write lock
+	g.repoIDMu.Lock()
 	g.repoIDCache[cacheKey] = query.Repository.ID
+	g.repoIDMu.Unlock()
+
 	return query.Repository.ID, nil
 }
 

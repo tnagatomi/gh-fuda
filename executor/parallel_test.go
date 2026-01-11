@@ -40,6 +40,7 @@ func TestWorkerPool_Run_OrderPreserved(t *testing.T) {
 			ID: id,
 			Func: func() *JobResult {
 				return &JobResult{
+					ID:      id,
 					Output:  "result",
 					Success: true,
 				}

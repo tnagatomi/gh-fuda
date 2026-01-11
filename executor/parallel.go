@@ -43,7 +43,6 @@ type JobResult struct {
 	ID      int
 	Output  string
 	Success bool
-	Error   error
 	Errors  []error
 }
 

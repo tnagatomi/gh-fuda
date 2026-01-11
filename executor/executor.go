@@ -24,7 +24,6 @@ package executor
 import (
 	"fmt"
 	"io"
-	"net/http"
 
 	"github.com/tnagatomi/gh-fuda/api"
 	"github.com/tnagatomi/gh-fuda/option"
@@ -37,14 +36,14 @@ type Executor struct {
 }
 
 // NewExecutor returns new Executor
-func NewExecutor(client *http.Client, dryrun bool) (*Executor, error) {
-	api, err := api.NewAPI(client)
+func NewExecutor(dryrun bool) (*Executor, error) {
+	apiClient, err := api.NewGraphQLAPI()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize API client: %v", err)
 	}
 
 	return &Executor{
-		api:    api,
+		api:    apiClient,
 		dryRun: dryrun,
 	}, nil
 }

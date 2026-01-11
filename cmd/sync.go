@@ -26,11 +26,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
 	"github.com/tnagatomi/gh-fuda/parser"
-
-	"github.com/spf13/cobra"
 )
 
 // NewSyncCmd represents the sync command
@@ -49,12 +47,7 @@ func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 				return fmt.Errorf("failed to parse repos option: %v", err)
 			}
 
-			client, err := api.NewHTTPClient(api.ClientOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to create gh http client: %v", err)
-			}
-
-			e, err := executor.NewExecutor(client, dryRun)
+			e, err := executor.NewExecutor(dryRun)
 			if err != nil {
 				return fmt.Errorf("failed to create executor: %v", err)
 			}

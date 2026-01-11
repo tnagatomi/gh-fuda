@@ -27,11 +27,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
 	"github.com/tnagatomi/gh-fuda/parser"
-
-	"github.com/spf13/cobra"
 )
 
 // NewDeleteCmd represents the delete command
@@ -40,12 +38,7 @@ func NewDeleteCmd(in io.Reader, out io.Writer) *cobra.Command {
 		Use:   "delete",
 		Short: "Delete specified labels from the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			client, err := api.NewHTTPClient(api.ClientOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to create gh http client: %v", err)
-			}
-
-			e, err := executor.NewExecutor(client, dryRun)
+			e, err := executor.NewExecutor(dryRun)
 			if err != nil {
 				return fmt.Errorf("failed to create executor: %v", err)
 			}

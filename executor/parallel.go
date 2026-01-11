@@ -24,7 +24,10 @@ package executor
 import (
 	"fmt"
 	"io"
+	"os"
 	"sync"
+
+	"golang.org/x/term"
 )
 
 const (
@@ -53,6 +56,7 @@ type WorkerPool struct {
 	results    chan *JobResult
 	wg         sync.WaitGroup
 	out        io.Writer
+	isTTY      bool
 	totalJobs  int
 	completed  int
 	mu         sync.Mutex
@@ -60,9 +64,14 @@ type WorkerPool struct {
 
 // NewWorkerPool creates a new worker pool with the specified number of workers
 func NewWorkerPool(out io.Writer) *WorkerPool {
+	isTTY := false
+	if f, ok := out.(*os.File); ok {
+		isTTY = term.IsTerminal(int(f.Fd()))
+	}
 	return &WorkerPool{
 		workers: WorkerPoolSize,
 		out:     out,
+		isTTY:   isTTY,
 	}
 }
 
@@ -113,7 +122,9 @@ func (wp *WorkerPool) worker() {
 
 		wp.mu.Lock()
 		wp.completed++
-		_, _ = fmt.Fprintf(wp.out, "\rProgress: %d/%d completed", wp.completed, wp.totalJobs)
+		if wp.isTTY {
+			_, _ = fmt.Fprintf(wp.out, "\rProcessing: %d/%d repositories completed", wp.completed, wp.totalJobs)
+		}
 		wp.mu.Unlock()
 
 		wp.results <- result
@@ -122,5 +133,7 @@ func (wp *WorkerPool) worker() {
 
 // ClearProgress clears the progress line and moves to a new line
 func (wp *WorkerPool) ClearProgress() {
-	_, _ = fmt.Fprintf(wp.out, "\r\033[K") // Clear the line
+	if wp.isTTY {
+		_, _ = fmt.Fprintf(wp.out, "\r\033[K") // Clear the line
+	}
 }

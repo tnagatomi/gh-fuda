@@ -24,6 +24,7 @@ package executor
 import (
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/tnagatomi/gh-fuda/api"
 	"github.com/tnagatomi/gh-fuda/option"
@@ -120,7 +121,7 @@ func (e *Executor) createParallel(out io.Writer, repos []option.Repo, labels []o
 }
 
 func (e *Executor) createLabelsForRepo(repo option.Repo, labels []option.Label, force bool) *JobResult {
-	var output string
+	var output strings.Builder
 	var errors []error
 
 	for _, label := range labels {
@@ -130,23 +131,23 @@ func (e *Executor) createLabelsForRepo(repo option.Repo, labels []option.Label, 
 			if force && api.IsAlreadyExists(err) {
 				err = e.api.UpdateLabel(label, repo)
 				if err != nil {
-					output += fmt.Sprintf("Failed to update label %q for repository %q: %v\n", label, repo, err)
+					fmt.Fprintf(&output, "Failed to update label %q for repository %q: %v\n", label, repo, err)
 					errors = append(errors, err)
 					continue
 				}
-				output += fmt.Sprintf("Updated label %q for repository %q\n", label, repo)
+				fmt.Fprintf(&output, "Updated label %q for repository %q\n", label, repo)
 				continue
 			}
 
-			output += fmt.Sprintf("Failed to create label %q for repository %q: %v\n", label, repo, err)
+			fmt.Fprintf(&output, "Failed to create label %q for repository %q: %v\n", label, repo, err)
 			errors = append(errors, err)
 			continue
 		}
-		output += fmt.Sprintf("Created label %q for repository %q\n", label, repo)
+		fmt.Fprintf(&output, "Created label %q for repository %q\n", label, repo)
 	}
 
 	return &JobResult{
-		Output:  output,
+		Output:  output.String(),
 		Success: len(errors) == 0,
 		Errors:  errors,
 	}
@@ -204,21 +205,21 @@ func (e *Executor) deleteParallel(out io.Writer, repos []option.Repo, labels []s
 }
 
 func (e *Executor) deleteLabelsForRepo(repo option.Repo, labels []string) *JobResult {
-	var output string
+	var output strings.Builder
 	var errors []error
 
 	for _, label := range labels {
 		err := e.api.DeleteLabel(label, repo)
 		if err != nil {
-			output += fmt.Sprintf("Failed to delete label %q for repository %q: %v\n", label, repo, err)
+			fmt.Fprintf(&output, "Failed to delete label %q for repository %q: %v\n", label, repo, err)
 			errors = append(errors, err)
 			continue
 		}
-		output += fmt.Sprintf("Deleted label %q for repository %q\n", label, repo)
+		fmt.Fprintf(&output, "Deleted label %q for repository %q\n", label, repo)
 	}
 
 	return &JobResult{
-		Output:  output,
+		Output:  output.String(),
 		Success: len(errors) == 0,
 		Errors:  errors,
 	}
@@ -300,15 +301,15 @@ func (e *Executor) syncParallel(out io.Writer, repos []option.Repo, labels []opt
 }
 
 func (e *Executor) syncLabelsForRepo(repo option.Repo, labels []option.Label) *JobResult {
-	var output string
+	var output strings.Builder
 	var errors []error
 
 	existingLabels, err := e.api.ListLabels(repo)
 	if err != nil {
-		output += fmt.Sprintf("Failed to list labels for repository %q: %v\n", repo, err)
+		fmt.Fprintf(&output, "Failed to list labels for repository %q: %v\n", repo, err)
 		errors = append(errors, err)
 		return &JobResult{
-			Output:  output,
+			Output:  output.String(),
 			Success: false,
 			Errors:  errors,
 		}
@@ -322,10 +323,10 @@ func (e *Executor) syncLabelsForRepo(repo option.Repo, labels []option.Label) *J
 
 		err = e.api.DeleteLabel(existing.Name, repo)
 		if err != nil {
-			output += fmt.Sprintf("Failed to delete label %q for repository %q: %v\n", existing.Name, repo, err)
+			fmt.Fprintf(&output, "Failed to delete label %q for repository %q: %v\n", existing.Name, repo, err)
 			errors = append(errors, err)
 		} else {
-			output += fmt.Sprintf("Deleted label %q for repository %q\n", existing.Name, repo)
+			fmt.Fprintf(&output, "Deleted label %q for repository %q\n", existing.Name, repo)
 		}
 	}
 
@@ -334,24 +335,24 @@ func (e *Executor) syncLabelsForRepo(repo option.Repo, labels []option.Label) *J
 		if labelExists(label.Name, existingLabels) {
 			err = e.api.UpdateLabel(label, repo)
 			if err != nil {
-				output += fmt.Sprintf("Failed to update label %q for repository %q: %v\n", label, repo, err)
+				fmt.Fprintf(&output, "Failed to update label %q for repository %q: %v\n", label, repo, err)
 				errors = append(errors, err)
 			} else {
-				output += fmt.Sprintf("Updated label %q for repository %q\n", label, repo)
+				fmt.Fprintf(&output, "Updated label %q for repository %q\n", label, repo)
 			}
 		} else {
 			err = e.api.CreateLabel(label, repo)
 			if err != nil {
-				output += fmt.Sprintf("Failed to create label %q for repository %q: %v\n", label, repo, err)
+				fmt.Fprintf(&output, "Failed to create label %q for repository %q: %v\n", label, repo, err)
 				errors = append(errors, err)
 			} else {
-				output += fmt.Sprintf("Created label %q for repository %q\n", label, repo)
+				fmt.Fprintf(&output, "Created label %q for repository %q\n", label, repo)
 			}
 		}
 	}
 
 	return &JobResult{
-		Output:  output,
+		Output:  output.String(),
 		Success: len(errors) == 0,
 		Errors:  errors,
 	}
@@ -390,35 +391,35 @@ func (e *Executor) List(out io.Writer, repos []option.Repo) error {
 }
 
 func (e *Executor) listLabelsForRepo(repo option.Repo) *JobResult {
-	var output string
+	var output strings.Builder
 	var errors []error
 
 	labels, err := e.api.ListLabels(repo)
 	if err != nil {
-		output += fmt.Sprintf("Failed to list labels for repository %q: %v\n", repo, err)
+		fmt.Fprintf(&output, "Failed to list labels for repository %q: %v\n", repo, err)
 		errors = append(errors, err)
 		return &JobResult{
-			Output:  output,
+			Output:  output.String(),
 			Success: false,
 			Errors:  errors,
 		}
 	}
 
 	if len(labels) == 0 {
-		output += fmt.Sprintf("Repository %q has no labels\n", repo)
+		fmt.Fprintf(&output, "Repository %q has no labels\n", repo)
 	} else {
-		output += fmt.Sprintf("Labels for repository %q:\n", repo)
+		fmt.Fprintf(&output, "Labels for repository %q:\n", repo)
 		for _, label := range labels {
 			if label.Description == "" {
-				output += fmt.Sprintf("  %s (#%s)\n", label.Name, label.Color)
+				fmt.Fprintf(&output, "  %s (#%s)\n", label.Name, label.Color)
 			} else {
-				output += fmt.Sprintf("  %s (#%s) - %s\n", label.Name, label.Color, label.Description)
+				fmt.Fprintf(&output, "  %s (#%s) - %s\n", label.Name, label.Color, label.Description)
 			}
 		}
 	}
 
 	return &JobResult{
-		Output:  output,
+		Output:  output.String(),
 		Success: true,
 		Errors:  errors,
 	}
@@ -487,15 +488,15 @@ func (e *Executor) emptyParallel(out io.Writer, repos []option.Repo) error {
 }
 
 func (e *Executor) emptyLabelsForRepo(repo option.Repo) *JobResult {
-	var output string
+	var output strings.Builder
 	var errors []error
 
 	labels, err := e.api.ListLabels(repo)
 	if err != nil {
-		output += fmt.Sprintf("Failed to list labels for repository %q: %v\n", repo, err)
+		fmt.Fprintf(&output, "Failed to list labels for repository %q: %v\n", repo, err)
 		errors = append(errors, err)
 		return &JobResult{
-			Output:  output,
+			Output:  output.String(),
 			Success: false,
 			Errors:  errors,
 		}
@@ -504,15 +505,15 @@ func (e *Executor) emptyLabelsForRepo(repo option.Repo) *JobResult {
 	for _, label := range labels {
 		err := e.api.DeleteLabel(label.Name, repo)
 		if err != nil {
-			output += fmt.Sprintf("Failed to delete label %q for repository %q: %v\n", label.Name, repo, err)
+			fmt.Fprintf(&output, "Failed to delete label %q for repository %q: %v\n", label.Name, repo, err)
 			errors = append(errors, err)
 		} else {
-			output += fmt.Sprintf("Deleted label %q for repository %q\n", label.Name, repo)
+			fmt.Fprintf(&output, "Deleted label %q for repository %q\n", label.Name, repo)
 		}
 	}
 
 	return &JobResult{
-		Output:  output,
+		Output:  output.String(),
 		Success: len(errors) == 0,
 		Errors:  errors,
 	}
@@ -607,16 +608,16 @@ func (e *Executor) mergeParallel(out io.Writer, repos []option.Repo, fromLabel, 
 }
 
 func (e *Executor) mergeLabelsForRepo(repo option.Repo, fromLabel, toLabel string) *JobResult {
-	var output string
+	var output strings.Builder
 	var errors []error
 
 	// Get source label ID
 	fromLabelID, err := e.api.GetLabelID(repo, fromLabel)
 	if err != nil {
-		output += fmt.Sprintf("Failed to find source label %q in repository %q: %v\n", fromLabel, repo, err)
+		fmt.Fprintf(&output, "Failed to find source label %q in repository %q: %v\n", fromLabel, repo, err)
 		errors = append(errors, err)
 		return &JobResult{
-			Output:  output,
+			Output:  output.String(),
 			Success: false,
 			Errors:  errors,
 		}
@@ -625,10 +626,10 @@ func (e *Executor) mergeLabelsForRepo(repo option.Repo, fromLabel, toLabel strin
 	// Get target label ID
 	toLabelID, err := e.api.GetLabelID(repo, toLabel)
 	if err != nil {
-		output += fmt.Sprintf("Failed to find target label %q in repository %q: %v\n", toLabel, repo, err)
+		fmt.Fprintf(&output, "Failed to find target label %q in repository %q: %v\n", toLabel, repo, err)
 		errors = append(errors, err)
 		return &JobResult{
-			Output:  output,
+			Output:  output.String(),
 			Success: false,
 			Errors:  errors,
 		}
@@ -637,10 +638,10 @@ func (e *Executor) mergeLabelsForRepo(repo option.Repo, fromLabel, toLabel strin
 	// Search for items with source label
 	labelables, err := e.api.SearchLabelables(repo, fromLabel)
 	if err != nil {
-		output += fmt.Sprintf("Failed to search for items with label %q in repository %q: %v\n", fromLabel, repo, err)
+		fmt.Fprintf(&output, "Failed to search for items with label %q in repository %q: %v\n", fromLabel, repo, err)
 		errors = append(errors, err)
 		return &JobResult{
-			Output:  output,
+			Output:  output.String(),
 			Success: false,
 			Errors:  errors,
 		}
@@ -653,40 +654,40 @@ func (e *Executor) mergeLabelsForRepo(repo option.Repo, fromLabel, toLabel strin
 		// Add target label
 		err = e.api.AddLabelsToLabelable(item.ID, []string{toLabelID})
 		if err != nil {
-			output += fmt.Sprintf("Failed to add label %q to %s #%d in repository %q: %v\n", toLabel, item.Type, item.Number, repo, err)
+			fmt.Fprintf(&output, "Failed to add label %q to %s #%d in repository %q: %v\n", toLabel, item.Type, item.Number, repo, err)
 			errors = append(errors, err)
 			failCount++
 			continue
 		}
-		output += fmt.Sprintf("Added label %q to %s #%d in repository %q\n", toLabel, item.Type, item.Number, repo)
+		fmt.Fprintf(&output, "Added label %q to %s #%d in repository %q\n", toLabel, item.Type, item.Number, repo)
 
 		// Remove source label
 		err = e.api.RemoveLabelsFromLabelable(item.ID, []string{fromLabelID})
 		if err != nil {
-			output += fmt.Sprintf("Failed to remove label %q from %s #%d in repository %q: %v\n", fromLabel, item.Type, item.Number, repo, err)
+			fmt.Fprintf(&output, "Failed to remove label %q from %s #%d in repository %q: %v\n", fromLabel, item.Type, item.Number, repo, err)
 			errors = append(errors, err)
 			failCount++
 			continue
 		}
-		output += fmt.Sprintf("Removed label %q from %s #%d in repository %q\n", fromLabel, item.Type, item.Number, repo)
+		fmt.Fprintf(&output, "Removed label %q from %s #%d in repository %q\n", fromLabel, item.Type, item.Number, repo)
 		successCount++
 	}
 
 	// Only delete source label if all items were processed successfully
 	if failCount > 0 {
-		output += fmt.Sprintf("Skipped deleting label %q from repository %q: %d items succeeded, %d items failed\n", fromLabel, repo, successCount, failCount)
+		fmt.Fprintf(&output, "Skipped deleting label %q from repository %q: %d items succeeded, %d items failed\n", fromLabel, repo, successCount, failCount)
 	} else {
 		err = e.api.DeleteLabel(fromLabel, repo)
 		if err != nil {
-			output += fmt.Sprintf("Failed to delete label %q from repository %q: %v\n", fromLabel, repo, err)
+			fmt.Fprintf(&output, "Failed to delete label %q from repository %q: %v\n", fromLabel, repo, err)
 			errors = append(errors, err)
 		} else {
-			output += fmt.Sprintf("Deleted label %q from repository %q\n", fromLabel, repo)
+			fmt.Fprintf(&output, "Deleted label %q from repository %q\n", fromLabel, repo)
 		}
 	}
 
 	return &JobResult{
-		Output:  output,
+		Output:  output.String(),
 		Success: len(errors) == 0,
 		Errors:  errors,
 	}

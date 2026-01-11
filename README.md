@@ -184,3 +184,28 @@ Delete all labels from the specified repositories.
 ```bash
 gh fuda empty -R "owner1/repo1,owner1/repo2,owner2/repo1"
 ```
+
+#### Merge Labels
+
+```bash
+gh fuda merge
+```
+
+Merge a source label into a target label across repositories. This command:
+1. Adds the target label to all issues, PRs, and discussions that have the source label
+2. Removes the source label from those items
+3. Deletes the source label from the repository
+
+Both the source (`--from`) and target (`--to`) labels must exist in each repository.
+
+##### Options
+
+- `--from`: Source label to merge from (will be deleted)
+- `--to`: Target label to merge into
+- `-y`, `--yes`: Do not prompt for confirmation
+
+##### Example
+
+```bash
+gh fuda merge -R "owner1/repo1,owner1/repo2,owner2/repo1" --from "old-bug" --to "bug"
+```

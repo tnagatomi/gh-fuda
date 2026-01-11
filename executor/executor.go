@@ -226,22 +226,22 @@ func (e *Executor) deleteLabelsForRepo(repo option.Repo, labels []string) *JobRe
 
 // Sync sync labels across multiple repositories
 func (e *Executor) Sync(out io.Writer, repos []option.Repo, labels []option.Label) error {
-	er := NewExecutionResult()
+	// Dry-run mode: execute sequentially with immediate output
+	if e.dryRun {
+		return e.syncDryRun(out, repos, labels)
+	}
 
+	// Normal mode: execute in parallel
+	return e.syncParallel(out, repos, labels)
+}
+
+func (e *Executor) syncDryRun(out io.Writer, repos []option.Repo, labels []option.Label) error {
+	var hasError bool
 	for _, repo := range repos {
-		repoStr := repo.String()
-		repoResult := &RepoResult{
-			Repo:   repoStr,
-			Errors: nil,
-		}
-
 		existingLabels, err := e.api.ListLabels(repo)
 		if err != nil {
-			repoResult.Errors = append(repoResult.Errors, err)
 			_, _ = fmt.Fprintf(out, "Failed to list labels for repository %q: %v\n", repo, err)
-			if !e.dryRun {
-				er.AddRepoResult(repoResult)
-			}
+			hasError = true
 			continue
 		}
 
@@ -250,63 +250,111 @@ func (e *Executor) Sync(out io.Writer, repos []option.Repo, labels []option.Labe
 			if labelExists(existing.Name, labels) {
 				continue
 			}
-
-			if e.dryRun {
-				_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", existing.Name, repo)
-				continue
-			}
-
-			err = e.api.DeleteLabel(existing.Name, repo)
-			if err != nil {
-				repoResult.Errors = append(repoResult.Errors, err)
-				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", existing.Name, repo, err)
-			} else {
-				_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", existing.Name, repo)
-			}
+			_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", existing.Name, repo)
 		}
 
 		// Create or update labels
 		for _, label := range labels {
 			if labelExists(label.Name, existingLabels) {
-				if e.dryRun {
-					_, _ = fmt.Fprintf(out, "Would update label %q for repository %q\n", label, repo)
-					continue
-				}
-
-				err = e.api.UpdateLabel(label, repo)
-				if err != nil {
-					repoResult.Errors = append(repoResult.Errors, err)
-					_, _ = fmt.Fprintf(out, "Failed to update label %q for repository %q: %v\n", label, repo, err)
-				} else {
-					_, _ = fmt.Fprintf(out, "Updated label %q for repository %q\n", label, repo)
-				}
+				_, _ = fmt.Fprintf(out, "Would update label %q for repository %q\n", label, repo)
 			} else {
-				// Create new label
-				if e.dryRun {
-					_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
-					continue
-				}
-
-				err = e.api.CreateLabel(label, repo)
-				if err != nil {
-					repoResult.Errors = append(repoResult.Errors, err)
-					_, _ = fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
-				} else {
-					_, _ = fmt.Fprintf(out, "Created label %q for repository %q\n", label, repo)
-				}
+				_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
 			}
 		}
+	}
+	if hasError {
+		return fmt.Errorf("some operations failed")
+	}
+	return nil
+}
 
-		if !e.dryRun {
-			er.AddRepoResult(repoResult)
+func (e *Executor) syncParallel(out io.Writer, repos []option.Repo, labels []option.Label) error {
+	wp := NewWorkerPool(out)
+	jobs := make([]Job, len(repos))
+
+	for i, repo := range repos {
+		repo := repo // capture loop variable
+		jobs[i] = Job{
+			ID: i,
+			Func: func() *JobResult {
+				return e.syncLabelsForRepo(repo, labels)
+			},
 		}
 	}
 
-	if !e.dryRun {
-		_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+	results := wp.Run(jobs)
+	wp.ClearProgress()
+
+	// Output all results together
+	er := NewExecutionResult()
+	for i, result := range results {
+		_, _ = fmt.Fprint(out, result.Output)
+		er.AddRepoResult(&RepoResult{
+			Repo:   repos[i].String(),
+			Errors: result.Errors,
+		})
 	}
 
+	_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
 	return er.Err()
+}
+
+func (e *Executor) syncLabelsForRepo(repo option.Repo, labels []option.Label) *JobResult {
+	var output string
+	var errors []error
+
+	existingLabels, err := e.api.ListLabels(repo)
+	if err != nil {
+		output += fmt.Sprintf("Failed to list labels for repository %q: %v\n", repo, err)
+		errors = append(errors, err)
+		return &JobResult{
+			Output:  output,
+			Success: false,
+			Errors:  errors,
+		}
+	}
+
+	// Delete labels not in the new set
+	for _, existing := range existingLabels {
+		if labelExists(existing.Name, labels) {
+			continue
+		}
+
+		err = e.api.DeleteLabel(existing.Name, repo)
+		if err != nil {
+			output += fmt.Sprintf("Failed to delete label %q for repository %q: %v\n", existing.Name, repo, err)
+			errors = append(errors, err)
+		} else {
+			output += fmt.Sprintf("Deleted label %q for repository %q\n", existing.Name, repo)
+		}
+	}
+
+	// Create or update labels
+	for _, label := range labels {
+		if labelExists(label.Name, existingLabels) {
+			err = e.api.UpdateLabel(label, repo)
+			if err != nil {
+				output += fmt.Sprintf("Failed to update label %q for repository %q: %v\n", label, repo, err)
+				errors = append(errors, err)
+			} else {
+				output += fmt.Sprintf("Updated label %q for repository %q\n", label, repo)
+			}
+		} else {
+			err = e.api.CreateLabel(label, repo)
+			if err != nil {
+				output += fmt.Sprintf("Failed to create label %q for repository %q: %v\n", label, repo, err)
+				errors = append(errors, err)
+			} else {
+				output += fmt.Sprintf("Created label %q for repository %q\n", label, repo)
+			}
+		}
+	}
+
+	return &JobResult{
+		Output:  output,
+		Success: len(errors) == 0,
+		Errors:  errors,
+	}
 }
 
 // List lists labels across multiple repositories

@@ -92,6 +92,28 @@ func containsAllDeleteCalls(got, want []struct {
 	return true
 }
 
+// containsAllListCalls checks if got contains all expected list calls (order independent)
+func containsAllListCalls(got []struct{ Repo option.Repo }, want []option.Repo) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	found := make([]bool, len(want))
+	for _, g := range got {
+		for i, w := range want {
+			if !found[i] && g.Repo == w {
+				found[i] = true
+				break
+			}
+		}
+	}
+	for _, f := range found {
+		if !f {
+			return false
+		}
+	}
+	return true
+}
+
 func TestCreate(t *testing.T) {
 	type args struct {
 		repos  []option.Repo
@@ -1119,40 +1141,34 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo-2"
 				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("Sync() gotOut = %v, want %v", gotOut, tt.wantOut)
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Sync() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Sync() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
+				}
 			}
-			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllListCalls(tt.mock.ListLabelsCalls, tt.wantListCall) {
 				t.Errorf("Sync() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
 			}
-			for i, call := range tt.mock.ListLabelsCalls {
-				if call.Repo != tt.wantListCall[i] {
-					t.Errorf("Sync() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
-				}
-			}
-			if len(tt.wantCreateCall) != len(tt.mock.CreateLabelCalls) {
+			if !containsAllCalls(tt.mock.CreateLabelCalls, tt.wantCreateCall) {
 				t.Errorf("Sync() wantCreateCall = %v, got %v", tt.wantCreateCall, tt.mock.CreateLabelCalls)
 			}
-			for i, call := range tt.mock.CreateLabelCalls {
-				if call.Label != tt.wantCreateCall[i].Label || call.Repo != tt.wantCreateCall[i].Repo {
-					t.Errorf("Sync() wantCreateCall = %v, got %v", tt.wantCreateCall, tt.mock.CreateLabelCalls)
-				}
-			}
-			if len(tt.wantDeleteCall) != len(tt.mock.DeleteLabelCalls) {
+			if !containsAllDeleteCalls(tt.mock.DeleteLabelCalls, tt.wantDeleteCall) {
 				t.Errorf("Sync() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
 			}
-			for i, call := range tt.mock.DeleteLabelCalls {
-				if call.Label != tt.wantDeleteCall[i].Label || call.Repo != tt.wantDeleteCall[i].Repo {
-					t.Errorf("Sync() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
-				}
-			}
-			if len(tt.wantUpdateCall) != len(tt.mock.UpdateLabelCalls) {
+			if !containsAllCalls(tt.mock.UpdateLabelCalls, tt.wantUpdateCall) {
 				t.Errorf("Sync() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
-			}
-			for i, call := range tt.mock.UpdateLabelCalls {
-				if call.Label != tt.wantUpdateCall[i].Label || call.Repo != tt.wantUpdateCall[i].Repo {
-					t.Errorf("Sync() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
-				}
 			}
 		})
 	}

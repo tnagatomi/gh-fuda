@@ -877,6 +877,7 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 			repo:      option.Repo{Owner: "owner", Repo: "repo"},
 			labelName: "bug",
 			mock: func() {
+				// Issue/PR search returns results
 				gock.New("https://api.github.com").
 					Post("/graphql").
 					Reply(200).
@@ -904,18 +905,17 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 							},
 						},
 					})
+				// Discussion search returns empty
 				gock.New("https://api.github.com").
 					Post("/graphql").
 					Reply(200).
 					JSON(map[string]any{
 						"data": map[string]any{
-							"repository": map[string]any{
-								"discussions": map[string]any{
-									"nodes":    []map[string]any{},
-									"pageInfo": map[string]any{
-										"hasNextPage": false,
-										"endCursor":   "",
-									},
+							"search": map[string]any{
+								"nodes":    []map[string]any{},
+								"pageInfo": map[string]any{
+									"hasNextPage": false,
+									"endCursor":   "",
 								},
 							},
 						},
@@ -932,6 +932,7 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 			repo:      option.Repo{Owner: "owner", Repo: "repo"},
 			labelName: "question",
 			mock: func() {
+				// Issue/PR search returns empty
 				gock.New("https://api.github.com").
 					Post("/graphql").
 					Reply(200).
@@ -946,29 +947,23 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 							},
 						},
 					})
+				// Discussion search returns result
 				gock.New("https://api.github.com").
 					Post("/graphql").
 					Reply(200).
 					JSON(map[string]any{
 						"data": map[string]any{
-							"repository": map[string]any{
-								"discussions": map[string]any{
-									"nodes": []map[string]any{
-										{
-											"id":     "D_789",
-											"number": 3,
-											"title":  "Question discussion",
-											"labels": map[string]any{
-												"nodes": []map[string]any{
-													{"name": "question"},
-												},
-											},
-										},
+							"search": map[string]any{
+								"nodes": []map[string]any{
+									{
+										"id":     "D_789",
+										"number": 3,
+										"title":  "Question discussion",
 									},
-									"pageInfo": map[string]any{
-										"hasNextPage": false,
-										"endCursor":   "",
-									},
+								},
+								"pageInfo": map[string]any{
+									"hasNextPage": false,
+									"endCursor":   "",
 								},
 							},
 						},
@@ -984,6 +979,7 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 			repo:      option.Repo{Owner: "owner", Repo: "repo"},
 			labelName: "nonexistent",
 			mock: func() {
+				// Issue/PR search returns empty
 				gock.New("https://api.github.com").
 					Post("/graphql").
 					Reply(200).
@@ -998,18 +994,17 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 							},
 						},
 					})
+				// Discussion search returns empty
 				gock.New("https://api.github.com").
 					Post("/graphql").
 					Reply(200).
 					JSON(map[string]any{
 						"data": map[string]any{
-							"repository": map[string]any{
-								"discussions": map[string]any{
-									"nodes":    []map[string]any{},
-									"pageInfo": map[string]any{
-										"hasNextPage": false,
-										"endCursor":   "",
-									},
+							"search": map[string]any{
+								"nodes":    []map[string]any{},
+								"pageInfo": map[string]any{
+									"hasNextPage": false,
+									"endCursor":   "",
 								},
 							},
 						},
@@ -1090,7 +1085,7 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 					Reply(200).
 					JSON(map[string]any{
 						"data": map[string]any{
-							"repository": nil,
+							"search": nil,
 						},
 						"errors": []map[string]any{
 							{
@@ -1136,7 +1131,7 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 					Reply(200).
 					JSON(map[string]any{
 						"data": map[string]any{
-							"repository": nil,
+							"search": nil,
 						},
 						"errors": []map[string]any{
 							{

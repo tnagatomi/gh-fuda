@@ -409,31 +409,23 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 	var allLabelables []option.Labelable
 	var cursor *string
 
+	searchQuery := fmt.Sprintf("repo:%s/%s label:\"%s\"", repo.Owner, repo.Repo, labelName)
+
 	for {
 		var query struct {
-			Repository struct {
-				Discussions struct {
-					Nodes []struct {
-						ID     string
-						Number int
-						Title  string
-						Labels struct {
-							Nodes []struct {
-								Name string
-							}
-						} `graphql:"labels(first: 100)"`
-					}
-					PageInfo struct {
-						HasNextPage bool
-						EndCursor   string
-					}
-				} `graphql:"discussions(first: 100, after: $cursor)"`
-			} `graphql:"repository(owner: $owner, name: $name)"`
+			Search struct {
+				Nodes []struct {
+					Discussion discussionFragment `graphql:"... on Discussion"`
+				}
+				PageInfo struct {
+					HasNextPage bool
+					EndCursor   string
+				}
+			} `graphql:"search(query: $query, type: DISCUSSION, first: 100, after: $cursor)"`
 		}
 
 		variables := map[string]any{
-			"owner":  repo.Owner,
-			"name":   repo.Repo,
+			"query":  searchQuery,
 			"cursor": cursor,
 		}
 
@@ -454,28 +446,30 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 			return nil, wrapGraphQLError(err, ResourceTypeRepository)
 		}
 
-		for _, node := range query.Repository.Discussions.Nodes {
-			// Check if this discussion has the target label
-			for _, label := range node.Labels.Nodes {
-				if strings.EqualFold(label.Name, labelName) {
-					allLabelables = append(allLabelables, option.Labelable{
-						ID:     node.ID,
-						Number: node.Number,
-						Title:  node.Title,
-						Type:   "Discussion",
-					})
-					break
-				}
+		for _, node := range query.Search.Nodes {
+			if node.Discussion.ID != "" {
+				allLabelables = append(allLabelables, option.Labelable{
+					ID:     node.Discussion.ID,
+					Number: node.Discussion.Number,
+					Title:  node.Discussion.Title,
+					Type:   "Discussion",
+				})
 			}
 		}
 
-		if !query.Repository.Discussions.PageInfo.HasNextPage {
+		if !query.Search.PageInfo.HasNextPage {
 			break
 		}
-		cursor = &query.Repository.Discussions.PageInfo.EndCursor
+		cursor = &query.Search.PageInfo.EndCursor
 	}
 
 	return allLabelables, nil
+}
+
+type discussionFragment struct {
+	ID     string
+	Number int
+	Title  string
 }
 
 // AddLabelsToLabelable adds labels to a labelable resource (issue, PR, or discussion)

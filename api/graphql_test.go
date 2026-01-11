@@ -922,8 +922,8 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 					})
 			},
 			want: []option.Labelable{
-				{ID: "I_123", Number: 1, Title: "Bug issue", Type: "Issue"},
-				{ID: "PR_456", Number: 2, Title: "Fix bug PR", Type: "PullRequest"},
+				{ID: "I_123", Number: 1, Title: "Bug issue", Type: option.LabelableTypeIssue},
+				{ID: "PR_456", Number: 2, Title: "Fix bug PR", Type: option.LabelableTypePullRequest},
 			},
 			wantErr: false,
 		},
@@ -970,7 +970,7 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 					})
 			},
 			want: []option.Labelable{
-				{ID: "D_789", Number: 3, Title: "Question discussion", Type: "Discussion"},
+				{ID: "D_789", Number: 3, Title: "Question discussion", Type: option.LabelableTypeDiscussion},
 			},
 			wantErr: false,
 		},

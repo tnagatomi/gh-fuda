@@ -371,14 +371,14 @@ func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]o
 					ID:     node.Issue.ID,
 					Number: node.Issue.Number,
 					Title:  node.Issue.Title,
-					Type:   "Issue",
+					Type:   option.LabelableTypeIssue,
 				})
 			case "PullRequest":
 				allLabelables = append(allLabelables, option.Labelable{
 					ID:     node.PullRequest.ID,
 					Number: node.PullRequest.Number,
 					Title:  node.PullRequest.Title,
-					Type:   "PullRequest",
+					Type:   option.LabelableTypePullRequest,
 				})
 			}
 		}
@@ -454,7 +454,7 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 					ID:     node.Discussion.ID,
 					Number: node.Discussion.Number,
 					Title:  node.Discussion.Title,
-					Type:   "Discussion",
+					Type:   option.LabelableTypeDiscussion,
 				})
 			}
 		}

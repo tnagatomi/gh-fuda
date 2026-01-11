@@ -25,11 +25,19 @@ import "fmt"
 
 // Labelable represents any GitHub resource that can have labels
 // (Issue, PullRequest, or Discussion)
+type LabelableType string
+
+const (
+	LabelableTypeIssue       LabelableType = "Issue"
+	LabelableTypePullRequest LabelableType = "PullRequest"
+	LabelableTypeDiscussion  LabelableType = "Discussion"
+)
+
 type Labelable struct {
 	ID     string // GraphQL node ID
 	Number int
 	Title  string
-	Type   string // "Issue", "PullRequest", "Discussion"
+	Type   LabelableType
 }
 
 func (l Labelable) String() string {

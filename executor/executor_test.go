@@ -1667,7 +1667,7 @@ func TestMerge(t *testing.T) {
 				},
 				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
 					return []option.Labelable{
-						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
 					}, nil
 				},
 				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
@@ -1777,7 +1777,7 @@ Summary: 0 repositories succeeded, 1 failed
 				},
 				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
 					return []option.Labelable{
-						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
 					}, nil
 				},
 				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
@@ -1808,7 +1808,7 @@ Summary: 0 repositories succeeded, 1 failed
 				},
 				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
 					return []option.Labelable{
-						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
 					}, nil
 				},
 			},
@@ -1835,7 +1835,7 @@ Would delete label "old-label" from repository "owner/repo"
 				},
 				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
 					return []option.Labelable{
-						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
 					}, nil
 				},
 				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
@@ -1870,8 +1870,8 @@ Summary: 0 repositories succeeded, 1 failed
 				},
 				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
 					return []option.Labelable{
-						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
-						{ID: "I_2", Number: 2, Title: "Issue 2", Type: "Issue"},
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
+						{ID: "I_2", Number: 2, Title: "Issue 2", Type: option.LabelableTypeIssue},
 					}, nil
 				},
 				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {

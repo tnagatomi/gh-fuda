@@ -472,3 +472,130 @@ func TestGraphQLAPI_ListLabels_Pagination(t *testing.T) {
 		t.Errorf("pending mocks: %d", len(gock.Pending()))
 	}
 }
+
+func TestGraphQLAPI_CreateLabel(t *testing.T) {
+	tests := []struct {
+		name       string
+		label      option.Label
+		repo       option.Repo
+		mock       func()
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name:  "success",
+			label: option.Label{Name: "bug", Color: "d73a4a", Description: "Something is broken"},
+			repo:  option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				// GetRepositoryID call
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"id": "R_123456",
+							},
+						},
+					})
+				// CreateLabel mutation
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"createLabel": map[string]any{
+								"label": map[string]any{
+									"id": "LA_123456",
+								},
+							},
+						},
+					})
+			},
+			wantErr: false,
+		},
+		{
+			name:  "repository not found",
+			label: option.Label{Name: "bug", Color: "d73a4a", Description: "Something is broken"},
+			repo:  option.Repo{Owner: "owner", Repo: "nonexistent"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "NOT_FOUND",
+								"message": "Could not resolve to a Repository with the name 'nonexistent'.",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "repository not found",
+		},
+		{
+			name:  "label already exists",
+			label: option.Label{Name: "bug", Color: "d73a4a", Description: "Something is broken"},
+			repo:  option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				// GetRepositoryID call
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"id": "R_123456",
+							},
+						},
+					})
+				// CreateLabel mutation - label already exists
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"createLabel": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "UNPROCESSABLE",
+								"message": "Label already exists",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "label already exists",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer gock.Off()
+			if tt.mock != nil {
+				tt.mock()
+			}
+
+			g := newTestGraphQLAPI(t)
+			err := g.CreateLabel(tt.label, tt.repo)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateLabel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err.Error() != tt.wantErrMsg {
+				t.Errorf("CreateLabel() error = %v, wantErrMsg %v", err.Error(), tt.wantErrMsg)
+				return
+			}
+
+			if !gock.IsDone() {
+				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			}
+		})
+	}
+}

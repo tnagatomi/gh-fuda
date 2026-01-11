@@ -153,6 +153,45 @@ func (g *GraphQLAPI) ListLabels(repo option.Repo) ([]option.Label, error) {
 	return allLabels, nil
 }
 
+// CreateLabel creates a new label in a repository
+func (g *GraphQLAPI) CreateLabel(label option.Label, repo option.Repo) error {
+	repoID, err := g.GetRepositoryID(repo)
+	if err != nil {
+		return err
+	}
+
+	var mutation struct {
+		CreateLabel struct {
+			Label struct {
+				ID string
+			}
+		} `graphql:"createLabel(input: $input)"`
+	}
+
+	type CreateLabelInput struct {
+		RepositoryID string `json:"repositoryId"`
+		Name         string `json:"name"`
+		Color        string `json:"color"`
+		Description  string `json:"description,omitempty"`
+	}
+
+	variables := map[string]any{
+		"input": CreateLabelInput{
+			RepositoryID: repoID,
+			Name:         label.Name,
+			Color:        label.Color,
+			Description:  label.Description,
+		},
+	}
+
+	err = g.client.Mutate("CreateLabel", &mutation, variables)
+	if err != nil {
+		return wrapGraphQLError(err, ResourceTypeLabel)
+	}
+
+	return nil
+}
+
 // wrapGraphQLError converts GraphQL API errors to custom error types
 func wrapGraphQLError(err error, resourceType ResourceType) error {
 	if err == nil {

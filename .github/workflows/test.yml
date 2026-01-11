@@ -16,7 +16,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '>=1.22.0'
+          go-version: '>=1.25.0'
       - name: Run tests
         run: go test ./...
   test-windows:
@@ -28,7 +28,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '>=1.22.0'
+          go-version: '>=1.25.0'
       - name: Run tests
         run: go test ./...
   test-macos:
@@ -40,6 +40,6 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '>=1.22.0'
+          go-version: '>=1.25.0'
       - name: Run tests
         run: go test ./...

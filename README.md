@@ -209,3 +209,46 @@ Both the source (`--from`) and target (`--to`) labels must exist in each reposit
 ```bash
 gh fuda merge -R "owner1/repo1,owner1/repo2,owner2/repo1" --from "old-bug" --to "bug"
 ```
+
+## Development
+
+### Prerequisites
+
+- Go 1.25.0 or later
+- [gh](https://cli.github.com/) CLI (for authentication)
+
+### Build
+
+```bash
+go build
+```
+
+### Test
+
+```bash
+# Run unit tests
+go test ./...
+
+# Run E2E tests (requires GH_TOKEN with access to test repositories)
+GH_TOKEN=$(gh auth token) go test -tags=e2e -v
+```
+
+### E2E Tests
+
+E2E tests execute actual CLI commands against real GitHub repositories.
+
+**Test Repositories:**
+
+- `tnagatomi/gh-fuda-test-1`
+- `tnagatomi/gh-fuda-test-2`
+
+**CI Configuration:**
+
+- E2E tests run with `concurrency: 1` to avoid conflicts
+- Requires `E2E_TEST_TOKEN` secret (PAT with `repo` scope for test repositories)
+
+### Lint
+
+```bash
+golangci-lint run
+```

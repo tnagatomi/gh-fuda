@@ -59,10 +59,21 @@ The codebase follows a clean layered architecture:
 
 ## Testing Approach
 
+### Unit Tests
 - Table-driven tests are the standard pattern
 - Mock API client (`internal/mock/api.go`) for unit testing executor logic
 - HTTP mocking with gock for API client tests
 - Test files are colocated with implementation files
+- Run with: `go test ./...`
+
+### E2E Tests
+- Located in `e2e_test.go` at the project root
+- Uses build tag `//go:build e2e` to separate from unit tests
+- Executes actual CLI commands against real GitHub API
+- Requires `GH_TOKEN` or `GITHUB_TOKEN` environment variable
+- Uses test repositories: `tnagatomi/gh-fuda-test-1`, `tnagatomi/gh-fuda-test-2`
+- Run with: `go test -tags=e2e -v`
+- CI runs with `concurrency: 1` to avoid conflicts between parallel jobs
 
 Example test pattern:
 ```go
@@ -180,7 +191,8 @@ Note: `--json`, `--yaml`, and `-l/--labels` flags are mutually exclusive. You mu
 ## CI/CD
 
 GitHub Actions workflows:
-- `test.yml` - Runs tests on multiple OS (Ubuntu, Windows, macOS)
+- `test.yml` - Runs unit tests on multiple OS (Ubuntu, Windows, macOS)
+- `e2e.yml` - Runs E2E tests with `concurrency: 1`
 - `golangci-lint.yml` - Code quality checks
 - `release.yml` - Automated release process
 

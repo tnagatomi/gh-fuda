@@ -343,7 +343,7 @@ func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]o
 		var query struct {
 			Search struct {
 				Nodes []struct {
-					TypeName    string `graphql:"__typename"`
+					TypeName    string              `graphql:"__typename"`
 					Issue       issueFragment       `graphql:"... on Issue"`
 					PullRequest pullRequestFragment `graphql:"... on PullRequest"`
 				}
@@ -439,10 +439,9 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 			if strings.Contains(errMsg, "FORBIDDEN") || strings.Contains(errMsg, "don't have permission") {
 				return nil, wrapGraphQLError(err, ResourceTypeRepository)
 			}
-			// If discussions are not enabled, just return empty
-			if strings.Contains(errMsg, "discussions are disabled") ||
-				strings.Contains(errMsg, "Discussions are disabled") ||
-				strings.Contains(errMsg, "DISCUSSIONS_DISABLED") {
+			// If discussions are not enabled/supported, just return empty
+			if strings.Contains(errMsg, "does not have discussions enabled") ||
+				strings.Contains(errMsg, "Discussions are disabled") {
 				return allLabelables, nil
 			}
 			return nil, wrapGraphQLError(err, ResourceTypeRepository)

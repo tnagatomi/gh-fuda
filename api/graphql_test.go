@@ -41,7 +41,7 @@ func newTestGraphQLAPI(t *testing.T) *GraphQLAPI {
 	}
 	return &GraphQLAPI{
 		client:      client,
-		repoIDCache: make(map[string]string),
+		repoIDCache: make(map[string]option.GraphQLID),
 	}
 }
 
@@ -50,7 +50,7 @@ func TestGraphQLAPI_GetRepositoryID(t *testing.T) {
 		name       string
 		repo       option.Repo
 		mock       func()
-		want       string
+		want       option.GraphQLID
 		wantErr    bool
 		wantErrMsg string
 	}{
@@ -182,7 +182,7 @@ func TestGraphQLAPI_GetLabelID(t *testing.T) {
 		repo       option.Repo
 		labelName  string
 		mock       func()
-		want       string
+		want       option.GraphQLID
 		wantErr    bool
 		wantErrMsg string
 	}{
@@ -1186,8 +1186,8 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 func TestGraphQLAPI_AddLabelsToLabelable(t *testing.T) {
 	tests := []struct {
 		name        string
-		labelableID string
-		labelIDs    []string
+		labelableID option.GraphQLID
+		labelIDs    []option.GraphQLID
 		mock        func()
 		wantErr     bool
 		wantErrMsg  string
@@ -1195,7 +1195,7 @@ func TestGraphQLAPI_AddLabelsToLabelable(t *testing.T) {
 		{
 			name:        "success - single label",
 			labelableID: "I_123",
-			labelIDs:    []string{"LA_456"},
+			labelIDs:    []option.GraphQLID{"LA_456"},
 			mock: func() {
 				gock.New("https://api.github.com").
 					Post("/graphql").
@@ -1213,7 +1213,7 @@ func TestGraphQLAPI_AddLabelsToLabelable(t *testing.T) {
 		{
 			name:        "success - multiple labels",
 			labelableID: "PR_123",
-			labelIDs:    []string{"LA_456", "LA_789"},
+			labelIDs:    []option.GraphQLID{"LA_456", "LA_789"},
 			mock: func() {
 				gock.New("https://api.github.com").
 					Post("/graphql").
@@ -1231,7 +1231,7 @@ func TestGraphQLAPI_AddLabelsToLabelable(t *testing.T) {
 		{
 			name:        "labelable not found",
 			labelableID: "I_nonexistent",
-			labelIDs:    []string{"LA_456"},
+			labelIDs:    []option.GraphQLID{"LA_456"},
 			mock: func() {
 				gock.New("https://api.github.com").
 					Post("/graphql").
@@ -1254,7 +1254,7 @@ func TestGraphQLAPI_AddLabelsToLabelable(t *testing.T) {
 		{
 			name:        "forbidden",
 			labelableID: "I_123",
-			labelIDs:    []string{"LA_456"},
+			labelIDs:    []option.GraphQLID{"LA_456"},
 			mock: func() {
 				gock.New("https://api.github.com").
 					Post("/graphql").
@@ -1305,8 +1305,8 @@ func TestGraphQLAPI_AddLabelsToLabelable(t *testing.T) {
 func TestGraphQLAPI_RemoveLabelsFromLabelable(t *testing.T) {
 	tests := []struct {
 		name        string
-		labelableID string
-		labelIDs    []string
+		labelableID option.GraphQLID
+		labelIDs    []option.GraphQLID
 		mock        func()
 		wantErr     bool
 		wantErrMsg  string
@@ -1314,7 +1314,7 @@ func TestGraphQLAPI_RemoveLabelsFromLabelable(t *testing.T) {
 		{
 			name:        "success - single label",
 			labelableID: "I_123",
-			labelIDs:    []string{"LA_456"},
+			labelIDs:    []option.GraphQLID{"LA_456"},
 			mock: func() {
 				gock.New("https://api.github.com").
 					Post("/graphql").
@@ -1332,7 +1332,7 @@ func TestGraphQLAPI_RemoveLabelsFromLabelable(t *testing.T) {
 		{
 			name:        "success - multiple labels",
 			labelableID: "PR_123",
-			labelIDs:    []string{"LA_456", "LA_789"},
+			labelIDs:    []option.GraphQLID{"LA_456", "LA_789"},
 			mock: func() {
 				gock.New("https://api.github.com").
 					Post("/graphql").
@@ -1350,7 +1350,7 @@ func TestGraphQLAPI_RemoveLabelsFromLabelable(t *testing.T) {
 		{
 			name:        "labelable not found",
 			labelableID: "I_nonexistent",
-			labelIDs:    []string{"LA_456"},
+			labelIDs:    []option.GraphQLID{"LA_456"},
 			mock: func() {
 				gock.New("https://api.github.com").
 					Post("/graphql").
@@ -1373,7 +1373,7 @@ func TestGraphQLAPI_RemoveLabelsFromLabelable(t *testing.T) {
 		{
 			name:        "forbidden",
 			labelableID: "I_123",
-			labelIDs:    []string{"LA_456"},
+			labelIDs:    []option.GraphQLID{"LA_456"},
 			mock: func() {
 				gock.New("https://api.github.com").
 					Post("/graphql").

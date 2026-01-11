@@ -1659,7 +1659,7 @@ func TestMerge(t *testing.T) {
 				toLabel:   "new-label",
 			},
 			mock: &mock.MockAPI{
-				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
 					if labelName == "old-label" {
 						return "LA_old", nil
 					}
@@ -1670,10 +1670,10 @@ func TestMerge(t *testing.T) {
 						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
 					}, nil
 				},
-				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
+				AddLabelsToLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 					return nil
 				},
-				RemoveLabelsFromLabelableFunc: func(labelableID string, labelIDs []string) error {
+				RemoveLabelsFromLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 					return nil
 				},
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
@@ -1697,7 +1697,7 @@ Summary: all operations completed successfully
 				toLabel:   "new-label",
 			},
 			mock: &mock.MockAPI{
-				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
 					if labelName == "old-label" {
 						return "LA_old", nil
 					}
@@ -1725,7 +1725,7 @@ Summary: all operations completed successfully
 				toLabel:   "new-label",
 			},
 			mock: &mock.MockAPI{
-				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
 					if labelName == "nonexistent" {
 						return "", &api.NotFoundError{ResourceType: api.ResourceTypeLabel}
 					}
@@ -1747,7 +1747,7 @@ Summary: 0 repositories succeeded, 1 failed
 				toLabel:   "nonexistent",
 			},
 			mock: &mock.MockAPI{
-				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
 					if labelName == "old-label" {
 						return "LA_old", nil
 					}
@@ -1769,7 +1769,7 @@ Summary: 0 repositories succeeded, 1 failed
 				toLabel:   "new-label",
 			},
 			mock: &mock.MockAPI{
-				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
 					if labelName == "old-label" {
 						return "LA_old", nil
 					}
@@ -1780,7 +1780,7 @@ Summary: 0 repositories succeeded, 1 failed
 						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
 					}, nil
 				},
-				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
+				AddLabelsToLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 					return &api.ForbiddenError{}
 				},
 			},
@@ -1800,7 +1800,7 @@ Summary: 0 repositories succeeded, 1 failed
 				toLabel:   "new-label",
 			},
 			mock: &mock.MockAPI{
-				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
 					if labelName == "old-label" {
 						return "LA_old", nil
 					}
@@ -1827,7 +1827,7 @@ Would delete label "old-label" from repository "owner/repo"
 				toLabel:   "new-label",
 			},
 			mock: &mock.MockAPI{
-				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
 					if labelName == "old-label" {
 						return "LA_old", nil
 					}
@@ -1838,10 +1838,10 @@ Would delete label "old-label" from repository "owner/repo"
 						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
 					}, nil
 				},
-				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
+				AddLabelsToLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 					return nil
 				},
-				RemoveLabelsFromLabelableFunc: func(labelableID string, labelIDs []string) error {
+				RemoveLabelsFromLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 					return &api.ForbiddenError{}
 				},
 			},
@@ -1862,7 +1862,7 @@ Summary: 0 repositories succeeded, 1 failed
 				toLabel:   "new-label",
 			},
 			mock: &mock.MockAPI{
-				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
 					if labelName == "old-label" {
 						return "LA_old", nil
 					}
@@ -1874,13 +1874,13 @@ Summary: 0 repositories succeeded, 1 failed
 						{ID: "I_2", Number: 2, Title: "Issue 2", Type: option.LabelableTypeIssue},
 					}, nil
 				},
-				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
+				AddLabelsToLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 					if labelableID == "I_2" {
 						return &api.ForbiddenError{}
 					}
 					return nil
 				},
-				RemoveLabelsFromLabelableFunc: func(labelableID string, labelIDs []string) error {
+				RemoveLabelsFromLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 					return nil
 				},
 			},

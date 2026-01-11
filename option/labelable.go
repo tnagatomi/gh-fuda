@@ -23,6 +23,9 @@ package option
 
 import "fmt"
 
+// GraphQLID represents a GitHub GraphQL node ID
+type GraphQLID string
+
 // Labelable represents any GitHub resource that can have labels
 // (Issue, PullRequest, or Discussion)
 type LabelableType string
@@ -34,7 +37,7 @@ const (
 )
 
 type Labelable struct {
-	ID     string // GraphQL node ID
+	ID     GraphQLID // GraphQL node ID
 	Number int
 	Title  string
 	Type   LabelableType

@@ -652,7 +652,7 @@ func (e *Executor) mergeLabelsForRepo(repo option.Repo, fromLabel, toLabel strin
 	failCount := 0
 	for _, item := range labelables {
 		// Add target label
-		err = e.api.AddLabelsToLabelable(item.ID, []string{toLabelID})
+		err = e.api.AddLabelsToLabelable(item.ID, []option.GraphQLID{toLabelID})
 		if err != nil {
 			fmt.Fprintf(&output, "Failed to add label %q to %s #%d in repository %q: %v\n", toLabel, item.Type, item.Number, repo, err)
 			errors = append(errors, err)
@@ -662,7 +662,7 @@ func (e *Executor) mergeLabelsForRepo(repo option.Repo, fromLabel, toLabel strin
 		fmt.Fprintf(&output, "Added label %q to %s #%d in repository %q\n", toLabel, item.Type, item.Number, repo)
 
 		// Remove source label
-		err = e.api.RemoveLabelsFromLabelable(item.ID, []string{fromLabelID})
+		err = e.api.RemoveLabelsFromLabelable(item.ID, []option.GraphQLID{fromLabelID})
 		if err != nil {
 			fmt.Fprintf(&output, "Failed to remove label %q from %s #%d in repository %q (target label %q was added): %v\n", fromLabel, item.Type, item.Number, repo, toLabel, err)
 			errors = append(errors, err)

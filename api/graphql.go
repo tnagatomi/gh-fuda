@@ -34,7 +34,7 @@ import (
 type GraphQLAPI struct {
 	client *api.GraphQLClient
 	// Cache for repository IDs to avoid redundant queries
-	repoIDCache map[string]string
+	repoIDCache map[string]option.GraphQLID
 	repoIDMu    sync.RWMutex
 }
 
@@ -46,12 +46,12 @@ func NewGraphQLAPI() (*GraphQLAPI, error) {
 	}
 	return &GraphQLAPI{
 		client:      client,
-		repoIDCache: make(map[string]string),
+		repoIDCache: make(map[string]option.GraphQLID),
 	}, nil
 }
 
 // GetRepositoryID fetches the GraphQL node ID for a repository
-func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (string, error) {
+func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (option.GraphQLID, error) {
 	cacheKey := repo.String()
 
 	// Check cache with read lock
@@ -80,14 +80,14 @@ func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (string, error) {
 
 	// Store in cache with write lock
 	g.repoIDMu.Lock()
-	g.repoIDCache[cacheKey] = query.Repository.ID
+	g.repoIDCache[cacheKey] = option.GraphQLID(query.Repository.ID)
 	g.repoIDMu.Unlock()
 
-	return query.Repository.ID, nil
+	return option.GraphQLID(query.Repository.ID), nil
 }
 
 // GetLabelID fetches the GraphQL node ID for a label in a repository
-func (g *GraphQLAPI) GetLabelID(repo option.Repo, labelName string) (string, error) {
+func (g *GraphQLAPI) GetLabelID(repo option.Repo, labelName string) (option.GraphQLID, error) {
 	var query struct {
 		Repository struct {
 			Label struct {
@@ -111,7 +111,7 @@ func (g *GraphQLAPI) GetLabelID(repo option.Repo, labelName string) (string, err
 		return "", &NotFoundError{ResourceType: ResourceTypeLabel}
 	}
 
-	return query.Repository.Label.ID, nil
+	return option.GraphQLID(query.Repository.Label.ID), nil
 }
 
 // ListLabels fetches all labels in a repository with pagination
@@ -188,7 +188,7 @@ func (g *GraphQLAPI) CreateLabel(label option.Label, repo option.Repo) error {
 
 	variables := map[string]any{
 		"input": CreateLabelInput{
-			RepositoryID: repoID,
+			RepositoryID: string(repoID),
 			Name:         label.Name,
 			Color:        label.Color,
 			Description:  label.Description,
@@ -227,7 +227,7 @@ func (g *GraphQLAPI) UpdateLabel(label option.Label, repo option.Repo) error {
 
 	variables := map[string]any{
 		"input": UpdateLabelInput{
-			ID:          labelID,
+			ID:          string(labelID),
 			Name:        label.Name,
 			Color:       label.Color,
 			Description: label.Description,
@@ -261,7 +261,7 @@ func (g *GraphQLAPI) DeleteLabel(label string, repo option.Repo) error {
 
 	variables := map[string]any{
 		"input": DeleteLabelInput{
-			ID: labelID,
+			ID: string(labelID),
 		},
 	}
 
@@ -368,14 +368,14 @@ func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]o
 			switch node.TypeName {
 			case "Issue":
 				allLabelables = append(allLabelables, option.Labelable{
-					ID:     node.Issue.ID,
+					ID:     option.GraphQLID(node.Issue.ID),
 					Number: node.Issue.Number,
 					Title:  node.Issue.Title,
 					Type:   option.LabelableTypeIssue,
 				})
 			case "PullRequest":
 				allLabelables = append(allLabelables, option.Labelable{
-					ID:     node.PullRequest.ID,
+					ID:     option.GraphQLID(node.PullRequest.ID),
 					Number: node.PullRequest.Number,
 					Title:  node.PullRequest.Title,
 					Type:   option.LabelableTypePullRequest,
@@ -451,7 +451,7 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 		for _, node := range query.Search.Nodes {
 			if node.Discussion.ID != "" {
 				allLabelables = append(allLabelables, option.Labelable{
-					ID:     node.Discussion.ID,
+					ID:     option.GraphQLID(node.Discussion.ID),
 					Number: node.Discussion.Number,
 					Title:  node.Discussion.Title,
 					Type:   option.LabelableTypeDiscussion,
@@ -475,7 +475,7 @@ type discussionFragment struct {
 }
 
 // AddLabelsToLabelable adds labels to a labelable resource (issue, PR, or discussion)
-func (g *GraphQLAPI) AddLabelsToLabelable(labelableID string, labelIDs []string) error {
+func (g *GraphQLAPI) AddLabelsToLabelable(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 	var mutation struct {
 		AddLabelsToLabelable struct {
 			ClientMutationID *string
@@ -487,10 +487,16 @@ func (g *GraphQLAPI) AddLabelsToLabelable(labelableID string, labelIDs []string)
 		LabelIDs    []string `json:"labelIds"`
 	}
 
+	// Convert GraphQLIDs to strings for the API
+	stringLabelIDs := make([]string, len(labelIDs))
+	for i, id := range labelIDs {
+		stringLabelIDs[i] = string(id)
+	}
+
 	variables := map[string]any{
 		"input": AddLabelsToLabelableInput{
-			LabelableID: labelableID,
-			LabelIDs:    labelIDs,
+			LabelableID: string(labelableID),
+			LabelIDs:    stringLabelIDs,
 		},
 	}
 
@@ -503,7 +509,7 @@ func (g *GraphQLAPI) AddLabelsToLabelable(labelableID string, labelIDs []string)
 }
 
 // RemoveLabelsFromLabelable removes labels from a labelable resource (issue, PR, or discussion)
-func (g *GraphQLAPI) RemoveLabelsFromLabelable(labelableID string, labelIDs []string) error {
+func (g *GraphQLAPI) RemoveLabelsFromLabelable(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 	var mutation struct {
 		RemoveLabelsFromLabelable struct {
 			ClientMutationID *string
@@ -515,10 +521,16 @@ func (g *GraphQLAPI) RemoveLabelsFromLabelable(labelableID string, labelIDs []st
 		LabelIDs    []string `json:"labelIds"`
 	}
 
+	// Convert GraphQLIDs to strings for the API
+	stringLabelIDs := make([]string, len(labelIDs))
+	for i, id := range labelIDs {
+		stringLabelIDs[i] = string(id)
+	}
+
 	variables := map[string]any{
 		"input": RemoveLabelsFromLabelableInput{
-			LabelableID: labelableID,
-			LabelIDs:    labelIDs,
+			LabelableID: string(labelableID),
+			LabelIDs:    stringLabelIDs,
 		},
 	}
 

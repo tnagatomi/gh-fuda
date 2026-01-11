@@ -32,12 +32,12 @@ type MockAPI struct {
 		Repo option.Repo
 	}
 
-	GetRepositoryIDFunc  func(repo option.Repo) (string, error)
+	GetRepositoryIDFunc  func(repo option.Repo) (option.GraphQLID, error)
 	GetRepositoryIDCalls []struct {
 		Repo option.Repo
 	}
 
-	GetLabelIDFunc  func(repo option.Repo, labelName string) (string, error)
+	GetLabelIDFunc  func(repo option.Repo, labelName string) (option.GraphQLID, error)
 	GetLabelIDCalls []struct {
 		Repo      option.Repo
 		LabelName string
@@ -49,16 +49,16 @@ type MockAPI struct {
 		LabelName string
 	}
 
-	AddLabelsToLabelableFunc  func(labelableID string, labelIDs []string) error
+	AddLabelsToLabelableFunc  func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error
 	AddLabelsToLabelableCalls []struct {
-		LabelableID string
-		LabelIDs    []string
+		LabelableID option.GraphQLID
+		LabelIDs    []option.GraphQLID
 	}
 
-	RemoveLabelsFromLabelableFunc  func(labelableID string, labelIDs []string) error
+	RemoveLabelsFromLabelableFunc  func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error
 	RemoveLabelsFromLabelableCalls []struct {
-		LabelableID string
-		LabelIDs    []string
+		LabelableID option.GraphQLID
+		LabelIDs    []option.GraphQLID
 	}
 }
 
@@ -121,7 +121,7 @@ func (m *MockAPI) ListLabels(repo option.Repo) ([]option.Label, error) {
 	return nil, nil
 }
 
-func (m *MockAPI) GetRepositoryID(repo option.Repo) (string, error) {
+func (m *MockAPI) GetRepositoryID(repo option.Repo) (option.GraphQLID, error) {
 	m.mu.Lock()
 	m.GetRepositoryIDCalls = append(m.GetRepositoryIDCalls, struct {
 		Repo option.Repo
@@ -135,7 +135,7 @@ func (m *MockAPI) GetRepositoryID(repo option.Repo) (string, error) {
 	return "", nil
 }
 
-func (m *MockAPI) GetLabelID(repo option.Repo, labelName string) (string, error) {
+func (m *MockAPI) GetLabelID(repo option.Repo, labelName string) (option.GraphQLID, error) {
 	m.mu.Lock()
 	m.GetLabelIDCalls = append(m.GetLabelIDCalls, struct {
 		Repo      option.Repo
@@ -165,11 +165,11 @@ func (m *MockAPI) SearchLabelables(repo option.Repo, labelName string) ([]option
 	return nil, nil
 }
 
-func (m *MockAPI) AddLabelsToLabelable(labelableID string, labelIDs []string) error {
+func (m *MockAPI) AddLabelsToLabelable(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 	m.mu.Lock()
 	m.AddLabelsToLabelableCalls = append(m.AddLabelsToLabelableCalls, struct {
-		LabelableID string
-		LabelIDs    []string
+		LabelableID option.GraphQLID
+		LabelIDs    []option.GraphQLID
 	}{labelableID, labelIDs})
 	m.mu.Unlock()
 
@@ -180,11 +180,11 @@ func (m *MockAPI) AddLabelsToLabelable(labelableID string, labelIDs []string) er
 	return nil
 }
 
-func (m *MockAPI) RemoveLabelsFromLabelable(labelableID string, labelIDs []string) error {
+func (m *MockAPI) RemoveLabelsFromLabelable(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
 	m.mu.Lock()
 	m.RemoveLabelsFromLabelableCalls = append(m.RemoveLabelsFromLabelableCalls, struct {
-		LabelableID string
-		LabelIDs    []string
+		LabelableID option.GraphQLID
+		LabelIDs    []option.GraphQLID
 	}{labelableID, labelIDs})
 	m.mu.Unlock()
 

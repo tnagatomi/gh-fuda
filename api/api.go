@@ -32,10 +32,15 @@ import (
 
 // APIClient is a interface for the API client
 type APIClient interface {
+	// Repository label operations
 	CreateLabel(label option.Label, repo option.Repo) error
 	UpdateLabel(label option.Label, repo option.Repo) error
 	DeleteLabel(label string, repo option.Repo) error
 	ListLabels(repo option.Repo) ([]option.Label, error)
+
+	// Helper methods for GraphQL operations
+	GetRepositoryID(repo option.Repo) (string, error)
+	GetLabelID(repo option.Repo, labelName string) (string, error)
 }
 
 // API is a wrapper around the GitHub client
@@ -131,4 +136,14 @@ func (a *API) ListLabels(repo option.Repo) ([]option.Label, error) {
 	}
 
 	return optionLabels, nil
+}
+
+// GetRepositoryID is not supported in REST API (stub for interface compatibility)
+func (a *API) GetRepositoryID(repo option.Repo) (string, error) {
+	return "", nil
+}
+
+// GetLabelID is not supported in REST API (stub for interface compatibility)
+func (a *API) GetLabelID(repo option.Repo, labelName string) (string, error) {
+	return "", nil
 }

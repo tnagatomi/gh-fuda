@@ -22,7 +22,11 @@ THE SOFTWARE.
 package api
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/cli/go-gh/v2/pkg/api"
+	"github.com/tnagatomi/gh-fuda/option"
 )
 
 // GraphQLAPI implements APIClient using GitHub GraphQL API
@@ -42,4 +46,68 @@ func NewGraphQLAPI() (*GraphQLAPI, error) {
 		client:      client,
 		repoIDCache: make(map[string]string),
 	}, nil
+}
+
+// GetRepositoryID fetches the GraphQL node ID for a repository
+func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (string, error) {
+	cacheKey := repo.String()
+	if id, ok := g.repoIDCache[cacheKey]; ok {
+		return id, nil
+	}
+
+	var query struct {
+		Repository struct {
+			ID string
+		} `graphql:"repository(owner: $owner, name: $name)"`
+	}
+
+	variables := map[string]any{
+		"owner": repo.Owner,
+		"name":  repo.Repo,
+	}
+
+	err := g.client.Query("RepositoryID", &query, variables)
+	if err != nil {
+		return "", wrapGraphQLError(err, ResourceTypeRepository)
+	}
+
+	g.repoIDCache[cacheKey] = query.Repository.ID
+	return query.Repository.ID, nil
+}
+
+// wrapGraphQLError converts GraphQL API errors to custom error types
+func wrapGraphQLError(err error, resourceType ResourceType) error {
+	if err == nil {
+		return nil
+	}
+
+	errMsg := err.Error()
+
+	// Check for common GraphQL error patterns
+	if strings.Contains(errMsg, "Could not resolve to a Repository") {
+		return &NotFoundError{ResourceType: ResourceTypeRepository}
+	}
+	if strings.Contains(errMsg, "Could not resolve to a Label") {
+		return &NotFoundError{ResourceType: ResourceTypeLabel}
+	}
+	if strings.Contains(errMsg, "NOT_FOUND") {
+		return &NotFoundError{ResourceType: resourceType}
+	}
+	if strings.Contains(errMsg, "FORBIDDEN") {
+		return &ForbiddenError{}
+	}
+	if strings.Contains(errMsg, "UNAUTHORIZED") || strings.Contains(errMsg, "401") {
+		return &UnauthorizedError{}
+	}
+	if strings.Contains(errMsg, "RATE_LIMITED") || strings.Contains(errMsg, "rate limit") {
+		return &RateLimitError{}
+	}
+	if strings.Contains(errMsg, "already exists") || strings.Contains(errMsg, "ALREADY_EXISTS") {
+		return &AlreadyExistsError{ResourceType: resourceType}
+	}
+	if strings.Contains(errMsg, "INSUFFICIENT_SCOPES") {
+		return &ScopeError{}
+	}
+
+	return fmt.Errorf("GraphQL API error: %s", errMsg)
 }

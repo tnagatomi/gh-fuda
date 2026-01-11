@@ -33,22 +33,23 @@ func Label(input string) ([]option.Label, error) {
 
 	var labels []option.Label
 	for _, label := range inputSplit {
+		label = strings.TrimSpace(label)
 		parts := strings.Split(label, ":")
 
 		var name, color, description string
 		switch len(parts) {
 		case 1:
 			// Format: name (auto-generate color)
-			name = parts[0]
+			name = strings.TrimSpace(parts[0])
 		case 2:
 			// Format: name:color
-			name = parts[0]
-			color = parts[1]
+			name = strings.TrimSpace(parts[0])
+			color = strings.TrimSpace(parts[1])
 		case 3:
 			// Format: name:color:desc or name::desc
-			name = parts[0]
-			color = parts[1]
-			description = parts[2]
+			name = strings.TrimSpace(parts[0])
+			color = strings.TrimSpace(parts[1])
+			description = strings.TrimSpace(parts[2])
 		default:
 			return nil, fmt.Errorf("invalid label format: %s", label)
 		}

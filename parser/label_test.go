@@ -165,6 +165,53 @@ func TestLabel(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Trim whitespace from label parts",
+			args: args{
+				input: " bug : ff0000 : This is a bug ",
+			},
+			want: []option.Label{
+				{
+					Name:        "bug",
+					Color:       "ff0000",
+					Description: "This is a bug",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Trim whitespace from multiple labels",
+			args: args{
+				input: " bug : ff0000 , enhancement : 00ff00 : Enhancement ",
+			},
+			want: []option.Label{
+				{
+					Name:        "bug",
+					Color:       "ff0000",
+					Description: "",
+				},
+				{
+					Name:        "enhancement",
+					Color:       "00ff00",
+					Description: "Enhancement",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Trim whitespace with auto color",
+			args: args{
+				input: " bug ",
+			},
+			want: []option.Label{
+				{
+					Name:        "bug",
+					Color:       GenerateColor("bug"),
+					Description: "",
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

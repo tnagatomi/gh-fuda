@@ -1818,6 +1818,81 @@ Would delete label "old-label" from repository "owner/repo"
 `,
 			wantErr: false,
 		},
+		{
+			name:   "partial failure - remove label fails after add succeeds",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+					}, nil
+				},
+				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
+					return nil
+				},
+				RemoveLabelsFromLabelableFunc: func(labelableID string, labelIDs []string) error {
+					return &api.ForbiddenError{}
+				},
+			},
+			wantOut: `Added label "new-label" to Issue #1 in repository "owner/repo"
+Failed to remove label "old-label" from Issue #1 in repository "owner/repo": forbidden
+Skipped deleting label "old-label" from repository "owner/repo": 0 items succeeded, 1 items failed
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+		{
+			name:   "multiple items - some succeed some fail",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+						{ID: "I_2", Number: 2, Title: "Issue 2", Type: "Issue"},
+					}, nil
+				},
+				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
+					if labelableID == "I_2" {
+						return &api.ForbiddenError{}
+					}
+					return nil
+				},
+				RemoveLabelsFromLabelableFunc: func(labelableID string, labelIDs []string) error {
+					return nil
+				},
+			},
+			wantOut: `Added label "new-label" to Issue #1 in repository "owner/repo"
+Removed label "old-label" from Issue #1 in repository "owner/repo"
+Failed to add label "new-label" to Issue #2 in repository "owner/repo": forbidden
+Skipped deleting label "old-label" from repository "owner/repo": 1 items succeeded, 1 items failed
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

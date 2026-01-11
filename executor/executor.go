@@ -518,6 +518,180 @@ func (e *Executor) emptyLabelsForRepo(repo option.Repo) *JobResult {
 	}
 }
 
+// Merge merges a source label into a target label across multiple repositories.
+// It adds the target label to all items with the source label, removes the source label,
+// and then deletes the source label from the repository.
+func (e *Executor) Merge(out io.Writer, repos []option.Repo, fromLabel, toLabel string) error {
+	// Dry-run mode: execute sequentially with immediate output
+	if e.dryRun {
+		return e.mergeDryRun(out, repos, fromLabel, toLabel)
+	}
+
+	// Normal mode: execute in parallel
+	return e.mergeParallel(out, repos, fromLabel, toLabel)
+}
+
+func (e *Executor) mergeDryRun(out io.Writer, repos []option.Repo, fromLabel, toLabel string) error {
+	var hasError bool
+	for _, repo := range repos {
+		// Check if source label exists
+		_, err := e.api.GetLabelID(repo, fromLabel)
+		if err != nil {
+			_, _ = fmt.Fprintf(out, "Failed to find source label %q in repository %q: %v\n", fromLabel, repo, err)
+			hasError = true
+			continue
+		}
+
+		// Check if target label exists
+		_, err = e.api.GetLabelID(repo, toLabel)
+		if err != nil {
+			_, _ = fmt.Fprintf(out, "Failed to find target label %q in repository %q: %v\n", toLabel, repo, err)
+			hasError = true
+			continue
+		}
+
+		// Search for items with source label
+		labelables, err := e.api.SearchLabelables(repo, fromLabel)
+		if err != nil {
+			_, _ = fmt.Fprintf(out, "Failed to search for items with label %q in repository %q: %v\n", fromLabel, repo, err)
+			hasError = true
+			continue
+		}
+
+		if len(labelables) == 0 {
+			_, _ = fmt.Fprintf(out, "No items found with label %q in repository %q\n", fromLabel, repo)
+		} else {
+			for _, item := range labelables {
+				_, _ = fmt.Fprintf(out, "Would add label %q to %s #%d in repository %q\n", toLabel, item.Type, item.Number, repo)
+				_, _ = fmt.Fprintf(out, "Would remove label %q from %s #%d in repository %q\n", fromLabel, item.Type, item.Number, repo)
+			}
+		}
+
+		_, _ = fmt.Fprintf(out, "Would delete label %q from repository %q\n", fromLabel, repo)
+	}
+	if hasError {
+		return fmt.Errorf("some operations failed")
+	}
+	return nil
+}
+
+func (e *Executor) mergeParallel(out io.Writer, repos []option.Repo, fromLabel, toLabel string) error {
+	wp := NewWorkerPool(out)
+	jobs := make([]Job, len(repos))
+
+	for i, repo := range repos {
+		repo := repo // capture loop variable
+		jobs[i] = Job{
+			ID: i,
+			Func: func() *JobResult {
+				return e.mergeLabelsForRepo(repo, fromLabel, toLabel)
+			},
+		}
+	}
+
+	results := wp.Run(jobs)
+	wp.ClearProgress()
+
+	// Output all results together
+	er := NewExecutionResult()
+	for i, result := range results {
+		_, _ = fmt.Fprint(out, result.Output)
+		er.AddRepoResult(&RepoResult{
+			Repo:   repos[i].String(),
+			Errors: result.Errors,
+		})
+	}
+
+	_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+	return er.Err()
+}
+
+func (e *Executor) mergeLabelsForRepo(repo option.Repo, fromLabel, toLabel string) *JobResult {
+	var output string
+	var errors []error
+
+	// Get source label ID
+	fromLabelID, err := e.api.GetLabelID(repo, fromLabel)
+	if err != nil {
+		output += fmt.Sprintf("Failed to find source label %q in repository %q: %v\n", fromLabel, repo, err)
+		errors = append(errors, err)
+		return &JobResult{
+			Output:  output,
+			Success: false,
+			Errors:  errors,
+		}
+	}
+
+	// Get target label ID
+	toLabelID, err := e.api.GetLabelID(repo, toLabel)
+	if err != nil {
+		output += fmt.Sprintf("Failed to find target label %q in repository %q: %v\n", toLabel, repo, err)
+		errors = append(errors, err)
+		return &JobResult{
+			Output:  output,
+			Success: false,
+			Errors:  errors,
+		}
+	}
+
+	// Search for items with source label
+	labelables, err := e.api.SearchLabelables(repo, fromLabel)
+	if err != nil {
+		output += fmt.Sprintf("Failed to search for items with label %q in repository %q: %v\n", fromLabel, repo, err)
+		errors = append(errors, err)
+		return &JobResult{
+			Output:  output,
+			Success: false,
+			Errors:  errors,
+		}
+	}
+
+	// Process each item
+	successCount := 0
+	failCount := 0
+	for _, item := range labelables {
+		// Add target label
+		err = e.api.AddLabelsToLabelable(item.ID, []string{toLabelID})
+		if err != nil {
+			output += fmt.Sprintf("Failed to add label %q to %s #%d in repository %q: %v\n", toLabel, item.Type, item.Number, repo, err)
+			errors = append(errors, err)
+			failCount++
+			continue
+		}
+		output += fmt.Sprintf("Added label %q to %s #%d in repository %q\n", toLabel, item.Type, item.Number, repo)
+
+		// Remove source label
+		err = e.api.RemoveLabelsFromLabelable(item.ID, []string{fromLabelID})
+		if err != nil {
+			output += fmt.Sprintf("Failed to remove label %q from %s #%d in repository %q: %v\n", fromLabel, item.Type, item.Number, repo, err)
+			errors = append(errors, err)
+			failCount++
+			continue
+		}
+		output += fmt.Sprintf("Removed label %q from %s #%d in repository %q\n", fromLabel, item.Type, item.Number, repo)
+		successCount++
+	}
+
+	// Only delete source label if all items were processed successfully
+	if failCount > 0 {
+		output += fmt.Sprintf("Skipped deleting label %q from repository %q: %d items succeeded, %d items failed\n", fromLabel, repo, successCount, failCount)
+	} else {
+		err = e.api.DeleteLabel(fromLabel, repo)
+		if err != nil {
+			output += fmt.Sprintf("Failed to delete label %q from repository %q: %v\n", fromLabel, repo, err)
+			errors = append(errors, err)
+		} else {
+			output += fmt.Sprintf("Deleted label %q from repository %q\n", fromLabel, repo)
+		}
+	}
+
+	return &JobResult{
+		Output:  output,
+		Success: len(errors) == 0,
+		Errors:  errors,
+	}
+}
+
 // labelExists checks if a label name exists in a slice of labels
 func labelExists(name string, labels []option.Label) bool {
 	for _, label := range labels {

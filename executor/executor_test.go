@@ -1635,3 +1635,218 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 		})
 	}
 }
+
+func TestMerge(t *testing.T) {
+	type args struct {
+		repos     []option.Repo
+		fromLabel string
+		toLabel   string
+	}
+	tests := []struct {
+		name    string
+		dryrun  bool
+		args    args
+		mock    *mock.MockAPI
+		wantOut string
+		wantErr bool
+	}{
+		{
+			name:   "success - single item",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+					}, nil
+				},
+				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
+					return nil
+				},
+				RemoveLabelsFromLabelableFunc: func(labelableID string, labelIDs []string) error {
+					return nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
+			},
+			wantOut: `Added label "new-label" to Issue #1 in repository "owner/repo"
+Removed label "old-label" from Issue #1 in repository "owner/repo"
+Deleted label "old-label" from repository "owner/repo"
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+		},
+		{
+			name:   "success - no items with label",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{}, nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
+			},
+			wantOut: `Deleted label "old-label" from repository "owner/repo"
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+		},
+		{
+			name:   "source label not found",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "nonexistent",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+					if labelName == "nonexistent" {
+						return "", &api.NotFoundError{ResourceType: api.ResourceTypeLabel}
+					}
+					return "LA_new", nil
+				},
+			},
+			wantOut: `Failed to find source label "nonexistent" in repository "owner/repo": label not found
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+		{
+			name:   "target label not found",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "nonexistent",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "", &api.NotFoundError{ResourceType: api.ResourceTypeLabel}
+				},
+			},
+			wantOut: `Failed to find target label "nonexistent" in repository "owner/repo": label not found
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+		{
+			name:   "partial failure - add label fails",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+					}, nil
+				},
+				AddLabelsToLabelableFunc: func(labelableID string, labelIDs []string) error {
+					return &api.ForbiddenError{}
+				},
+			},
+			wantOut: `Failed to add label "new-label" to Issue #1 in repository "owner/repo": forbidden
+Skipped deleting label "old-label" from repository "owner/repo": 0 items succeeded, 1 items failed
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+		{
+			name:   "dry-run mode",
+			dryrun: true,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (string, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: "Issue"},
+					}, nil
+				},
+			},
+			wantOut: `Would add label "new-label" to Issue #1 in repository "owner/repo"
+Would remove label "old-label" from Issue #1 in repository "owner/repo"
+Would delete label "old-label" from repository "owner/repo"
+`,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Executor{
+				api:    tt.mock,
+				dryRun: tt.dryrun,
+			}
+			out := &bytes.Buffer{}
+			err := e.Merge(out, tt.args.repos, tt.args.fromLabel, tt.args.toLabel)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Merge() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Merge() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Merge() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
+				}
+			}
+		})
+	}
+}

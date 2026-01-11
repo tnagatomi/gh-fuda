@@ -23,8 +23,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -39,7 +37,7 @@ var (
 )
 
 // NewMergeCmd represents the merge command
-func NewMergeCmd(in io.Reader, out io.Writer) *cobra.Command {
+func NewMergeCmd() *cobra.Command {
 	var mergeCmd = &cobra.Command{
 		Use:   "merge",
 		Short: "Merge a source label into a target label across repositories",
@@ -56,15 +54,13 @@ Both the source (--from) and target (--to) labels must exist in each repository.
 				return fmt.Errorf("source and target labels must be different")
 			}
 
-			e, err := executor.NewExecutor(dryRun)
-			if err != nil {
-				return fmt.Errorf("failed to create executor: %v", err)
-			}
-
 			repoList, err := parser.Repo(repos)
 			if err != nil {
 				return fmt.Errorf("failed to parse repos option: %v", err)
 			}
+
+			in := cmd.InOrStdin()
+			out := cmd.OutOrStdout()
 
 			if !dryRun && !skipConfirm {
 				confirmed, err := confirm(in, out)
@@ -75,6 +71,11 @@ Both the source (--from) and target (--to) labels must exist in each repository.
 					_, _ = fmt.Fprintf(out, "Canceled execution\n")
 					return nil
 				}
+			}
+
+			e, err := executor.NewExecutor(dryRun)
+			if err != nil {
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
 			err = e.Merge(out, repoList, fromLabel, toLabel)
@@ -89,7 +90,7 @@ Both the source (--from) and target (--to) labels must exist in each repository.
 }
 
 func init() {
-	mergeCmd := NewMergeCmd(os.Stdin, os.Stdout)
+	mergeCmd := NewMergeCmd()
 	rootCmd.AddCommand(mergeCmd)
 
 	mergeCmd.Flags().StringVar(&fromLabel, "from", "", "Source label to merge from (will be deleted)")

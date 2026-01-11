@@ -23,8 +23,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
@@ -32,7 +30,7 @@ import (
 )
 
 // NewListCmd initialize the list command
-func NewListCmd(out io.Writer) *cobra.Command {
+func NewListCmd() *cobra.Command {
 	var listCmd = &cobra.Command{
 		Use:   "list",
 		Short: "List existing labels from the specified repositories",
@@ -47,6 +45,7 @@ func NewListCmd(out io.Writer) *cobra.Command {
 				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
+			out := cmd.OutOrStdout()
 			err = e.List(out, repoList)
 			if err != nil {
 				return fmt.Errorf("failed to list labels: %v", err)
@@ -59,6 +58,6 @@ func NewListCmd(out io.Writer) *cobra.Command {
 }
 
 func init() {
-	listCmd := NewListCmd(os.Stdout)
+	listCmd := NewListCmd()
 	rootCmd.AddCommand(listCmd)
 }

@@ -23,8 +23,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
@@ -32,20 +30,18 @@ import (
 )
 
 // NewEmptyCmd represents the empty command
-func NewEmptyCmd(in io.Reader, out io.Writer) *cobra.Command {
+func NewEmptyCmd() *cobra.Command {
 	var emptyCmd = &cobra.Command{
 		Use:   "empty",
 		Short: "Delete all labels from the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			e, err := executor.NewExecutor(dryRun)
-			if err != nil {
-				return fmt.Errorf("failed to create executor: %v", err)
-			}
-
 			repoList, err := parser.Repo(repos)
 			if err != nil {
 				return fmt.Errorf("failed to parse repos option: %v", err)
 			}
+
+			in := cmd.InOrStdin()
+			out := cmd.OutOrStdout()
 
 			if !dryRun && !force {
 				confirmed, err := confirm(in, out)
@@ -56,6 +52,11 @@ func NewEmptyCmd(in io.Reader, out io.Writer) *cobra.Command {
 					_, _ = fmt.Fprintf(out, "Canceled execution\n")
 					return nil
 				}
+			}
+
+			e, err := executor.NewExecutor(dryRun)
+			if err != nil {
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
 			err = e.Empty(out, repoList)
@@ -71,7 +72,7 @@ func NewEmptyCmd(in io.Reader, out io.Writer) *cobra.Command {
 }
 
 func init() {
-	emptyCmd := NewEmptyCmd(os.Stdin, os.Stdout)
+	emptyCmd := NewEmptyCmd()
 	rootCmd.AddCommand(emptyCmd)
 
 	emptyCmd.Flags().BoolVar(&force, "force", false, "Do not prompt for confirmation")

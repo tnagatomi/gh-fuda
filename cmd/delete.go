@@ -23,8 +23,6 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -33,22 +31,20 @@ import (
 )
 
 // NewDeleteCmd represents the delete command
-func NewDeleteCmd(in io.Reader, out io.Writer) *cobra.Command {
+func NewDeleteCmd() *cobra.Command {
 	var deleteCmd = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete specified labels from the specified repositories",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			e, err := executor.NewExecutor(dryRun)
-			if err != nil {
-				return fmt.Errorf("failed to create executor: %v", err)
-			}
-
 			repoList, err := parser.Repo(repos)
 			if err != nil {
 				return fmt.Errorf("failed to parse repos option: %v", err)
 			}
 
 			labelList := strings.Split(labels, ",")
+
+			in := cmd.InOrStdin()
+			out := cmd.OutOrStdout()
 
 			if !dryRun && !force {
 				confirmed, err := confirm(in, out)
@@ -59,6 +55,11 @@ func NewDeleteCmd(in io.Reader, out io.Writer) *cobra.Command {
 					_, _ = fmt.Fprintf(out, "Canceled execution\n")
 					return nil
 				}
+			}
+
+			e, err := executor.NewExecutor(dryRun)
+			if err != nil {
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
 			err = e.Delete(out, repoList, labelList)
@@ -73,7 +74,7 @@ func NewDeleteCmd(in io.Reader, out io.Writer) *cobra.Command {
 }
 
 func init() {
-	deleteCmd := NewDeleteCmd(os.Stdin, os.Stdout)
+	deleteCmd := NewDeleteCmd()
 	rootCmd.AddCommand(deleteCmd)
 
 	deleteCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to delete in the format of 'label1[,label2,...]'")

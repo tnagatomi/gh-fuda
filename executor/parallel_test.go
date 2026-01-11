@@ -152,7 +152,7 @@ func TestWorkerPool_Run_ErrorHandling(t *testing.T) {
 	}
 }
 
-func TestWorkerPool_Run_ProgressOutput(t *testing.T) {
+func TestWorkerPool_Run_NoProgressForNonTTY(t *testing.T) {
 	var buf bytes.Buffer
 	wp := NewWorkerPool(&buf)
 
@@ -165,9 +165,9 @@ func TestWorkerPool_Run_ProgressOutput(t *testing.T) {
 	wp.Run(jobs)
 
 	output := buf.String()
-	// Progress output should contain completion counts
-	if len(output) == 0 {
-		t.Error("expected progress output, got empty string")
+	// Progress output should NOT be shown for non-TTY output
+	if len(output) != 0 {
+		t.Errorf("expected no progress output for non-TTY, got %q", output)
 	}
 }
 

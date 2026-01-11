@@ -33,7 +33,8 @@ import (
 func newTestGraphQLAPI(t *testing.T) *GraphQLAPI {
 	t.Helper()
 	client, err := api.NewGraphQLClient(api.ClientOptions{
-		Host: "github.com",
+		Host:      "github.com",
+		AuthToken: "test-token",
 	})
 	if err != nil {
 		t.Fatalf("failed to create GraphQL client: %v", err)

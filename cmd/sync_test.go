@@ -52,7 +52,6 @@ func TestSyncCmd_MutuallyExclusiveFlags(t *testing.T) {
 			jsonPath = ""
 			yamlPath = ""
 			repos = ""
-			force = false
 
 			var out bytes.Buffer
 			// Use rootCmd to get all flags properly registered

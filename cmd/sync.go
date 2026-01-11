@@ -31,6 +31,9 @@ import (
 
 // NewSyncCmd represents the sync command
 func NewSyncCmd() *cobra.Command {
+	var skipConfirm bool
+	var forceDeprecated bool
+
 	var syncCmd = &cobra.Command{
 		Use:   "sync",
 		Short: "Sync the labels in the specified repositories with the specified labels",
@@ -48,7 +51,7 @@ func NewSyncCmd() *cobra.Command {
 			in := cmd.InOrStdin()
 			out := cmd.OutOrStdout()
 
-			if !dryRun && !force {
+			if !dryRun && !skipConfirm && !forceDeprecated {
 				confirmed, err := confirm(in, out)
 				if err != nil {
 					return fmt.Errorf("failed to confirm execution: %v", err)
@@ -72,6 +75,11 @@ func NewSyncCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	syncCmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Do not prompt for confirmation")
+	syncCmd.Flags().BoolVar(&forceDeprecated, "force", false, "Do not prompt for confirmation")
+	_ = syncCmd.Flags().MarkDeprecated("force", "use -y instead")
+
 	return syncCmd
 }
 
@@ -82,5 +90,4 @@ func init() {
 	syncCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to set in the format of 'label1:color1:description1[,label2:color2:description2,...]' (description can be omitted)")
 	syncCmd.Flags().StringVar(&jsonPath, "json", "", "Specify the path to a JSON file containing labels to sync")
 	syncCmd.Flags().StringVar(&yamlPath, "yaml", "", "Specify the path to a YAML file containing labels to sync")
-	syncCmd.Flags().BoolVar(&force, "force", false, "Do not prompt for confirmation")
 }

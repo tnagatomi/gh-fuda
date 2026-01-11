@@ -599,3 +599,116 @@ func TestGraphQLAPI_CreateLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestGraphQLAPI_UpdateLabel(t *testing.T) {
+	tests := []struct {
+		name       string
+		label      option.Label
+		repo       option.Repo
+		mock       func()
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name:  "success",
+			label: option.Label{Name: "bug", Color: "ff0000", Description: "Updated description"},
+			repo:  option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				// GetLabelID call
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"label": map[string]any{
+									"id": "LA_123456",
+								},
+							},
+						},
+					})
+				// UpdateLabel mutation
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"updateLabel": map[string]any{
+								"label": map[string]any{
+									"id": "LA_123456",
+								},
+							},
+						},
+					})
+			},
+			wantErr: false,
+		},
+		{
+			name:  "label not found",
+			label: option.Label{Name: "nonexistent", Color: "ff0000", Description: "Description"},
+			repo:  option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"label": nil,
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "label not found",
+		},
+		{
+			name:  "repository not found",
+			label: option.Label{Name: "bug", Color: "ff0000", Description: "Description"},
+			repo:  option.Repo{Owner: "owner", Repo: "nonexistent"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "NOT_FOUND",
+								"message": "Could not resolve to a Repository with the name 'nonexistent'.",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "repository not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer gock.Off()
+			if tt.mock != nil {
+				tt.mock()
+			}
+
+			g := newTestGraphQLAPI(t)
+			err := g.UpdateLabel(tt.label, tt.repo)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UpdateLabel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err.Error() != tt.wantErrMsg {
+				t.Errorf("UpdateLabel() error = %v, wantErrMsg %v", err.Error(), tt.wantErrMsg)
+				return
+			}
+
+			if !gock.IsDone() {
+				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			}
+		})
+	}
+}

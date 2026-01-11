@@ -28,10 +28,9 @@ import (
 )
 
 var (
-	repos  string
-	dryRun bool
-	force  bool
-	labels string
+	repos    string
+	dryRun   bool
+	labels   string
 	jsonPath string
 	yamlPath string
 )

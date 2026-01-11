@@ -31,6 +31,8 @@ import (
 
 // NewCreateCmd initialize the create command
 func NewCreateCmd() *cobra.Command {
+	var force bool
+
 	var createCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create specified labels to the specified repositories",
@@ -59,6 +61,9 @@ func NewCreateCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	createCmd.Flags().BoolVarP(&force, "force", "f", false, "Update the label color and description if label already exists")
+
 	return createCmd
 }
 
@@ -69,5 +74,4 @@ func init() {
 	createCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to create in the format of 'label1:color1:description1[,label2:color2:description2,...]' (description can be omitted)")
 	createCmd.Flags().StringVar(&jsonPath, "json", "", "Specify the path to a JSON file containing labels to create")
 	createCmd.Flags().StringVar(&yamlPath, "yaml", "", "Specify the path to a YAML file containing labels to create")
-	createCmd.Flags().BoolVarP(&force, "force", "f", false, "Update the label color and description if label already exists")
 }

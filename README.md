@@ -125,7 +125,7 @@ Delete specified labels from the specified repositories.
 ##### Options
 
 - `-l`, `--labels`: Specify the labels to delete in the format of `'label1[,label2,...]'`
-- `--force`: Do not prompt for confirmation
+- `-y`, `--yes`: Do not prompt for confirmation
 
 ##### Example
 
@@ -146,7 +146,7 @@ Sync the labels in the specified repositories with the specified labels.
 - `-l`, `--labels`: Specify the labels to set (see [Label Format](#label-format) in Create Labels section)
 - `--json`: Specify the path to a JSON file containing labels to sync
 - `--yaml`: Specify the path to a YAML file containing labels to sync
-- `--force`: Do not prompt for confirmation
+- `-y`, `--yes`: Do not prompt for confirmation
 
 **Note**: `--json`, `--yaml`, and `-l/--labels` flags are mutually exclusive. You must use exactly one of these options.
 
@@ -177,7 +177,7 @@ Delete all labels from the specified repositories.
 
 ##### Options
 
-- `--force`: Do not prompt for confirmation
+- `-y`, `--yes`: Do not prompt for confirmation
 
 ##### Example
 

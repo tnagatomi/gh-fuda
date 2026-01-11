@@ -32,6 +32,9 @@ import (
 
 // NewDeleteCmd represents the delete command
 func NewDeleteCmd() *cobra.Command {
+	var skipConfirm bool
+	var forceDeprecated bool
+
 	var deleteCmd = &cobra.Command{
 		Use:   "delete",
 		Short: "Delete specified labels from the specified repositories",
@@ -46,7 +49,7 @@ func NewDeleteCmd() *cobra.Command {
 			in := cmd.InOrStdin()
 			out := cmd.OutOrStdout()
 
-			if !dryRun && !force {
+			if !dryRun && !skipConfirm && !forceDeprecated {
 				confirmed, err := confirm(in, out)
 				if err != nil {
 					return fmt.Errorf("failed to confirm execution: %v", err)
@@ -70,6 +73,11 @@ func NewDeleteCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	deleteCmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Do not prompt for confirmation")
+	deleteCmd.Flags().BoolVar(&forceDeprecated, "force", false, "Do not prompt for confirmation")
+	_ = deleteCmd.Flags().MarkDeprecated("force", "use -y/--yes instead")
+
 	return deleteCmd
 }
 
@@ -78,7 +86,6 @@ func init() {
 	rootCmd.AddCommand(deleteCmd)
 
 	deleteCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to delete in the format of 'label1[,label2,...]'")
-	deleteCmd.Flags().BoolVar(&force, "force", false, "Do not prompt for confirmation")
 
 	err := deleteCmd.MarkFlagRequired("labels")
 	if err != nil {

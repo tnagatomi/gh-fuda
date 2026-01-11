@@ -31,6 +31,9 @@ import (
 
 // NewEmptyCmd represents the empty command
 func NewEmptyCmd() *cobra.Command {
+	var skipConfirm bool
+	var forceDeprecated bool
+
 	var emptyCmd = &cobra.Command{
 		Use:   "empty",
 		Short: "Delete all labels from the specified repositories",
@@ -43,7 +46,7 @@ func NewEmptyCmd() *cobra.Command {
 			in := cmd.InOrStdin()
 			out := cmd.OutOrStdout()
 
-			if !dryRun && !force {
+			if !dryRun && !skipConfirm && !forceDeprecated {
 				confirmed, err := confirm(in, out)
 				if err != nil {
 					return fmt.Errorf("failed to confirm execution: %v", err)
@@ -68,12 +71,14 @@ func NewEmptyCmd() *cobra.Command {
 		},
 	}
 
+	emptyCmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Do not prompt for confirmation")
+	emptyCmd.Flags().BoolVar(&forceDeprecated, "force", false, "Do not prompt for confirmation")
+	_ = emptyCmd.Flags().MarkDeprecated("force", "use -y/--yes instead")
+
 	return emptyCmd
 }
 
 func init() {
 	emptyCmd := NewEmptyCmd()
 	rootCmd.AddCommand(emptyCmd)
-
-	emptyCmd.Flags().BoolVar(&force, "force", false, "Do not prompt for confirmation")
 }

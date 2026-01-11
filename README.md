@@ -48,6 +48,7 @@ Create specified labels to the specified repositories.
 - `-l`, `--labels`: Specify the labels to create in the format of `'label1:color1:description1[,label2:color2:description2,...]'` (description can be omitted)
 - `--json`: Specify the path to a JSON file containing labels to create
 - `--yaml`: Specify the path to a YAML file containing labels to create
+- `-f`, `--force`: Update the label color and description if label already exists
 
 **Note**: `--json`, `--yaml`, and `-l/--labels` flags are mutually exclusive. You must use exactly one of these options.
 

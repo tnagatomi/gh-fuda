@@ -59,7 +59,7 @@ func NewCreateCmd(out io.Writer) *cobra.Command {
 				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
-			err = e.Create(out, repoList, labelList)
+			err = e.Create(out, repoList, labelList, force)
 			if err != nil {
 				return fmt.Errorf("failed to create labels: %v", err)
 			}
@@ -77,4 +77,5 @@ func init() {
 	createCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to create in the format of 'label1:color1:description1[,label2:color2:description2,...]' (description can be omitted)")
 	createCmd.Flags().StringVar(&jsonPath, "json", "", "Specify the path to a JSON file containing labels to create")
 	createCmd.Flags().StringVar(&yamlPath, "yaml", "", "Specify the path to a YAML file containing labels to create")
+	createCmd.Flags().BoolVarP(&force, "force", "f", false, "Update the label color and description if label already exists")
 }

@@ -440,7 +440,9 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 				return nil, wrapGraphQLError(err, ResourceTypeRepository)
 			}
 			// If discussions are not enabled, just return empty
-			if strings.Contains(errMsg, "discussions") {
+			if strings.Contains(errMsg, "discussions are disabled") ||
+				strings.Contains(errMsg, "Discussions are disabled") ||
+				strings.Contains(errMsg, "DISCUSSIONS_DISABLED") {
 				return allLabelables, nil
 			}
 			return nil, wrapGraphQLError(err, ResourceTypeRepository)

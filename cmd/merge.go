@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
@@ -51,7 +52,7 @@ This command:
 
 Both the source (--from) and target (--to) labels must exist in each repository.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if fromLabel == toLabel {
+			if strings.EqualFold(fromLabel, toLabel) {
 				return fmt.Errorf("source and target labels must be different")
 			}
 

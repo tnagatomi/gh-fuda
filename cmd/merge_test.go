@@ -31,3 +31,29 @@ func TestMergeCmd_RequiredFlags(t *testing.T) {
 		t.Errorf("Execute() error = %v, want error containing %q", err, "required flag(s)")
 	}
 }
+
+func TestMergeCmd_SameLabel(t *testing.T) {
+	// Reset flags
+	fromLabel = ""
+	toLabel = ""
+	repos = ""
+	skipConfirm = false
+	dryRun = false
+
+	var out bytes.Buffer
+	rootCmd.SetArgs([]string{"merge", "-R", "owner/repo", "--from", "bug", "--to", "bug"})
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
+
+	err := rootCmd.Execute()
+
+	if err == nil {
+		t.Errorf("Execute() expected error for same labels, got nil")
+		return
+	}
+
+	// Should fail because from and to labels are the same
+	if !strings.Contains(err.Error(), "source and target labels must be different") {
+		t.Errorf("Execute() error = %v, want error containing %q", err, "source and target labels must be different")
+	}
+}

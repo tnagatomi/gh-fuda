@@ -51,6 +51,10 @@ This command:
 
 Both the source (--from) and target (--to) labels must exist in each repository.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if fromLabel == toLabel {
+				return fmt.Errorf("source and target labels must be different")
+			}
+
 			e, err := executor.NewExecutor(dryRun)
 			if err != nil {
 				return fmt.Errorf("failed to create executor: %v", err)

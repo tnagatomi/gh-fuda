@@ -35,22 +35,35 @@ func Label(input string) ([]option.Label, error) {
 	for _, label := range inputSplit {
 		parts := strings.Split(label, ":")
 
-		if len(parts) != 3 && len(parts) != 2 {
-			return nil, fmt.Errorf("invalid label format: %s", label)
-		}
-
 		var name, color, description string
-		if len(parts) == 2 {
+		switch len(parts) {
+		case 1:
+			// Format: name (auto-generate color)
+			name = parts[0]
+		case 2:
+			// Format: name:color
 			name = parts[0]
 			color = parts[1]
-		} else {
+		case 3:
+			// Format: name:color:desc or name::desc
 			name = parts[0]
 			color = parts[1]
 			description = parts[2]
+		default:
+			return nil, fmt.Errorf("invalid label format: %s", label)
 		}
 
-		if !isHexColor(color) {
+		// Validate name is not empty
+		if name == "" {
+			return nil, fmt.Errorf("label name cannot be empty")
+		}
+
+		// Validate color format if provided, otherwise generate
+		if color != "" && !isHexColor(color) {
 			return nil, fmt.Errorf("invalid color format: %s", color)
+		}
+		if color == "" {
+			color = GenerateColor(name)
 		}
 
 		labels = append(labels, option.Label{

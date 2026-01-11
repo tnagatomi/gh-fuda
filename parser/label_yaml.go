@@ -55,17 +55,18 @@ func LabelFromYAML(path string) ([]option.Label, error) {
 			return nil, fmt.Errorf("label at index %d has empty name", i)
 		}
 
-		if yl.Color == "" {
-			return nil, fmt.Errorf("label %q has empty color", yl.Name)
+		// Validate color format if provided, otherwise generate
+		color := yl.Color
+		if color != "" && !isHexColor(color) {
+			return nil, fmt.Errorf("label %q has invalid color format: %s", yl.Name, color)
 		}
-
-		if !isHexColor(yl.Color) {
-			return nil, fmt.Errorf("label %q has invalid color format: %s", yl.Name, yl.Color)
+		if color == "" {
+			color = GenerateColor(yl.Name)
 		}
 
 		labels = append(labels, option.Label{
 			Name:        yl.Name,
-			Color:       yl.Color,
+			Color:       color,
 			Description: yl.Description,
 		})
 	}

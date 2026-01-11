@@ -115,19 +115,23 @@ func TestLabelFromYAML(t *testing.T) {
 			errContains: "has empty name",
 		},
 		{
-			name: "label with empty color",
+			name: "label with empty color - auto generate",
 			yamlContent: `- name: bug
   color: ""
   description: No color`,
-			wantErr:     true,
-			errContains: "has empty color",
+			want: []option.Label{
+				{Name: "bug", Color: GenerateColor("bug"), Description: "No color"},
+			},
+			wantErr: false,
 		},
 		{
-			name: "label with missing color field",
+			name: "label with missing color field - auto generate",
 			yamlContent: `- name: bug
   description: No color field`,
-			wantErr:     true,
-			errContains: "has empty color",
+			want: []option.Label{
+				{Name: "bug", Color: GenerateColor("bug"), Description: "No color field"},
+			},
+			wantErr: false,
 		},
 		{
 			name: "label with invalid hex color",

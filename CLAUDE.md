@@ -49,6 +49,7 @@ The codebase follows a clean layered architecture:
    - Handles file-based input for labels and repositories
    - Validates and transforms user input
    - `LabelFromJSON()` function to parse labels from JSON files
+   - `GenerateColor()` function generates deterministic colors from label names using SHA-256 hash
 
 5. **option/** - Option structures
    - Defines data structures for command options
@@ -105,17 +106,38 @@ func TestFunctionName(t *testing.T) {
 - Simplified error messages without redundant details (e.g., "repository not found" instead of "repository 'owner/repo' not found")
 - Command usage is not displayed for runtime errors (only for argument/flag errors)
 
-## File Input Support
+## Label Input Support
 
-The `create` and `sync` commands support both JSON and YAML file input for labels.
+The `create` and `sync` commands support multiple input formats for labels.
 
-### JSON Format
+### Color Auto-Generation
+
+When the color is omitted or empty, a color is automatically generated from the label name using a SHA-256 hash. This ensures that the same label name always produces the same color across all repositories.
+
+### CLI Format (`--labels` / `-l`)
+
+Supported formats:
+- `name` - Name only, color auto-generated
+- `name:color` - Name and color
+- `name:color:description` - Name, color, and description
+- `name::description` - Name and description, color auto-generated
+
+Examples:
+```bash
+gh fuda create -R owner/repo -l "bug"
+gh fuda create -R owner/repo -l "bug:d73a4a:Something isn't working"
+gh fuda create -R owner/repo -l "bug::Something isn't working"
+gh fuda create -R owner/repo -l "bug,enhancement:a2eeef,feature::New feature"
+```
+
+### JSON Format (`--json`)
+
+The `color` field is optional. If omitted or empty, color is auto-generated.
 
 ```json
 [
   {
     "name": "bug",
-    "color": "d73a4a",
     "description": "Something isn't working"
   },
   {
@@ -126,11 +148,12 @@ The `create` and `sync` commands support both JSON and YAML file input for label
 ]
 ```
 
-### YAML Format
+### YAML Format (`--yaml`)
+
+The `color` field is optional. If omitted or empty, color is auto-generated.
 
 ```yaml
 - name: bug
-  color: d73a4a
   description: Something isn't working
 - name: enhancement
   color: a2eeef
@@ -155,5 +178,6 @@ GitHub Actions workflows:
 
 ## Version History
 
-- **v2.0.0** (upcoming) - Breaking change: `ListLabels` now returns `[]option.Label` instead of `[]string`. Added `list` command with pagination support.
+- **v2.1.0** (upcoming) - Added random color pick feature: colors are now optional and auto-generated from label names using SHA-256 hash when omitted.
+- **v2.0.0** - Breaking change: `ListLabels` now returns `[]option.Label` instead of `[]string`. Added `list` command with pagination support.
 - **v1.0.0** - Initial stable release

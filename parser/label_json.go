@@ -55,17 +55,18 @@ func LabelFromJSON(path string) ([]option.Label, error) {
 			return nil, fmt.Errorf("label at index %d has empty name", i)
 		}
 
-		if jl.Color == "" {
-			return nil, fmt.Errorf("label %q has empty color", jl.Name)
+		// Validate color format if provided, otherwise generate
+		color := jl.Color
+		if color != "" && !isHexColor(color) {
+			return nil, fmt.Errorf("label %q has invalid color format: %s", jl.Name, color)
 		}
-
-		if !isHexColor(jl.Color) {
-			return nil, fmt.Errorf("label %q has invalid color format: %s", jl.Name, jl.Color)
+		if color == "" {
+			color = GenerateColor(jl.Name)
 		}
 
 		labels = append(labels, option.Label{
 			Name:        jl.Name,
-			Color:       jl.Color,
+			Color:       color,
 			Description: jl.Description,
 		})
 	}

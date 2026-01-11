@@ -42,6 +42,24 @@ type MockAPI struct {
 		Repo      option.Repo
 		LabelName string
 	}
+
+	SearchLabelablesFunc  func(repo option.Repo, labelName string) ([]option.Labelable, error)
+	SearchLabelablesCalls []struct {
+		Repo      option.Repo
+		LabelName string
+	}
+
+	AddLabelsToLabelableFunc  func(labelableID string, labelIDs []string) error
+	AddLabelsToLabelableCalls []struct {
+		LabelableID string
+		LabelIDs    []string
+	}
+
+	RemoveLabelsFromLabelableFunc  func(labelableID string, labelIDs []string) error
+	RemoveLabelsFromLabelableCalls []struct {
+		LabelableID string
+		LabelIDs    []string
+	}
 }
 
 func (m *MockAPI) CreateLabel(label option.Label, repo option.Repo) error {
@@ -130,4 +148,49 @@ func (m *MockAPI) GetLabelID(repo option.Repo, labelName string) (string, error)
 	}
 
 	return "", nil
+}
+
+func (m *MockAPI) SearchLabelables(repo option.Repo, labelName string) ([]option.Labelable, error) {
+	m.mu.Lock()
+	m.SearchLabelablesCalls = append(m.SearchLabelablesCalls, struct {
+		Repo      option.Repo
+		LabelName string
+	}{repo, labelName})
+	m.mu.Unlock()
+
+	if m.SearchLabelablesFunc != nil {
+		return m.SearchLabelablesFunc(repo, labelName)
+	}
+
+	return nil, nil
+}
+
+func (m *MockAPI) AddLabelsToLabelable(labelableID string, labelIDs []string) error {
+	m.mu.Lock()
+	m.AddLabelsToLabelableCalls = append(m.AddLabelsToLabelableCalls, struct {
+		LabelableID string
+		LabelIDs    []string
+	}{labelableID, labelIDs})
+	m.mu.Unlock()
+
+	if m.AddLabelsToLabelableFunc != nil {
+		return m.AddLabelsToLabelableFunc(labelableID, labelIDs)
+	}
+
+	return nil
+}
+
+func (m *MockAPI) RemoveLabelsFromLabelable(labelableID string, labelIDs []string) error {
+	m.mu.Lock()
+	m.RemoveLabelsFromLabelableCalls = append(m.RemoveLabelsFromLabelableCalls, struct {
+		LabelableID string
+		LabelIDs    []string
+	}{labelableID, labelIDs})
+	m.mu.Unlock()
+
+	if m.RemoveLabelsFromLabelableFunc != nil {
+		return m.RemoveLabelsFromLabelableFunc(labelableID, labelIDs)
+	}
+
+	return nil
 }

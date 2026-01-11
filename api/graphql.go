@@ -298,3 +298,21 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 
 	return fmt.Errorf("GraphQL API error: %s", errMsg)
 }
+
+// SearchLabelables searches for issues, pull requests, and discussions with a specific label
+// TODO: Implement
+func (g *GraphQLAPI) SearchLabelables(repo option.Repo, labelName string) ([]option.Labelable, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+// AddLabelsToLabelable adds labels to a labelable resource (issue, PR, or discussion)
+// TODO: Implement
+func (g *GraphQLAPI) AddLabelsToLabelable(labelableID string, labelIDs []string) error {
+	return fmt.Errorf("not implemented")
+}
+
+// RemoveLabelsFromLabelable removes labels from a labelable resource (issue, PR, or discussion)
+// TODO: Implement
+func (g *GraphQLAPI) RemoveLabelsFromLabelable(labelableID string, labelIDs []string) error {
+	return fmt.Errorf("not implemented")
+}

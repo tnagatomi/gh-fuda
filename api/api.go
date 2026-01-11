@@ -33,6 +33,11 @@ type APIClient interface {
 	DeleteLabel(label string, repo option.Repo) error
 	ListLabels(repo option.Repo) ([]option.Label, error)
 
+	// Labelable operations (for merge command)
+	SearchLabelables(repo option.Repo, labelName string) ([]option.Labelable, error)
+	AddLabelsToLabelable(labelableID string, labelIDs []string) error
+	RemoveLabelsFromLabelable(labelableID string, labelIDs []string) error
+
 	// Helper methods for GraphQL operations
 	GetRepositoryID(repo option.Repo) (string, error)
 	GetLabelID(repo option.Repo, labelName string) (string, error)

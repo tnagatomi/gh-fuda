@@ -154,39 +154,74 @@ func (e *Executor) createLabelsForRepo(repo option.Repo, labels []option.Label, 
 
 // Delete deletes labels across multiple repositories
 func (e *Executor) Delete(out io.Writer, repos []option.Repo, labels []string) error {
-	er := NewExecutionResult()
+	// Dry-run mode: execute sequentially with immediate output
+	if e.dryRun {
+		return e.deleteDryRun(out, repos, labels)
+	}
 
+	// Normal mode: execute in parallel
+	return e.deleteParallel(out, repos, labels)
+}
+
+func (e *Executor) deleteDryRun(out io.Writer, repos []option.Repo, labels []string) error {
 	for _, repo := range repos {
-		repoResult := &RepoResult{
-			Repo:   repo.String(),
-			Errors: nil,
-		}
-
 		for _, label := range labels {
-			if e.dryRun {
-				_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", label, repo)
-				continue
-			}
-
-			err := e.api.DeleteLabel(label, repo)
-			if err != nil {
-				repoResult.Errors = append(repoResult.Errors, err)
-				_, _ = fmt.Fprintf(out, "Failed to delete label %q for repository %q: %v\n", label, repo, err)
-				continue
-			}
-			_, _ = fmt.Fprintf(out, "Deleted label %q for repository %q\n", label, repo)
+			_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", label, repo)
 		}
+	}
+	return nil
+}
 
-		if !e.dryRun {
-			er.AddRepoResult(repoResult)
+func (e *Executor) deleteParallel(out io.Writer, repos []option.Repo, labels []string) error {
+	wp := NewWorkerPool(out)
+	jobs := make([]Job, len(repos))
+
+	for i, repo := range repos {
+		repo := repo // capture loop variable
+		jobs[i] = Job{
+			ID: i,
+			Func: func() *JobResult {
+				return e.deleteLabelsForRepo(repo, labels)
+			},
 		}
 	}
 
-	if !e.dryRun {
-		_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+	results := wp.Run(jobs)
+	wp.ClearProgress()
+
+	// Output all results together
+	er := NewExecutionResult()
+	for i, result := range results {
+		_, _ = fmt.Fprint(out, result.Output)
+		er.AddRepoResult(&RepoResult{
+			Repo:   repos[i].String(),
+			Errors: result.Errors,
+		})
 	}
 
+	_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
 	return er.Err()
+}
+
+func (e *Executor) deleteLabelsForRepo(repo option.Repo, labels []string) *JobResult {
+	var output string
+	var errors []error
+
+	for _, label := range labels {
+		err := e.api.DeleteLabel(label, repo)
+		if err != nil {
+			output += fmt.Sprintf("Failed to delete label %q for repository %q: %v\n", label, repo, err)
+			errors = append(errors, err)
+			continue
+		}
+		output += fmt.Sprintf("Deleted label %q for repository %q\n", label, repo)
+	}
+
+	return &JobResult{
+		Output:  output,
+		Success: len(errors) == 0,
+		Errors:  errors,
+	}
 }
 
 // Sync sync labels across multiple repositories

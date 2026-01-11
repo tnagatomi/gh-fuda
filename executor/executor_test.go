@@ -67,6 +67,31 @@ func containsAllCalls(got, want []struct {
 	return true
 }
 
+// containsAllDeleteCalls checks if got contains all expected delete calls (order independent)
+func containsAllDeleteCalls(got, want []struct {
+	Label string
+	Repo  option.Repo
+}) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	found := make([]bool, len(want))
+	for _, g := range got {
+		for i, w := range want {
+			if !found[i] && g.Label == w.Label && g.Repo == w.Repo {
+				found[i] = true
+				break
+			}
+		}
+	}
+	for _, f := range found {
+		if !f {
+			return false
+		}
+	}
+	return true
+}
+
 func TestCreate(t *testing.T) {
 	type args struct {
 		repos  []option.Repo
@@ -742,16 +767,25 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("Delete() gotOut = %v, want %v", gotOut, tt.wantOut)
-			}
-			if len(tt.wantCall) != len(tt.mock.DeleteLabelCalls) {
-				t.Errorf("Delete() wantCall = %v, got %v", tt.wantCall, tt.mock.DeleteLabelCalls)
-			}
-			for i, call := range tt.mock.DeleteLabelCalls {
-				if call.Label != tt.wantCall[i].Label || call.Repo != tt.wantCall[i].Repo {
-					t.Errorf("Delete() wantCall = %v, got %v", tt.wantCall, tt.mock.DeleteLabelCalls)
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Delete() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Delete() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
 				}
+			}
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllDeleteCalls(tt.mock.DeleteLabelCalls, tt.wantCall) {
+				t.Errorf("Delete() wantCall = %v, got %v", tt.wantCall, tt.mock.DeleteLabelCalls)
 			}
 		})
 	}

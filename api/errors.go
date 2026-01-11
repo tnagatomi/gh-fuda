@@ -24,9 +24,6 @@ package api
 import (
 	"errors"
 	"fmt"
-	"strings"
-
-	"github.com/google/go-github/v59/github"
 )
 
 // UnauthorizedError indicates 401 Unauthorized response
@@ -123,36 +120,4 @@ func IsAlreadyExists(err error) bool {
 func IsScopeError(err error) bool {
 	var scopeErr *ScopeError
 	return errors.As(err, &scopeErr)
-}
-
-// wrapGitHubError converts GitHub API errors to our custom error types
-func wrapGitHubError(err error, resourceType ResourceType) error {
-	if err == nil {
-		return nil
-	}
-
-	var ghErr *github.ErrorResponse
-	if errors.As(err, &ghErr) {
-		switch ghErr.Response.StatusCode {
-		case 401:
-			return &UnauthorizedError{}
-		case 403:
-			return &ForbiddenError{}
-		case 404:
-			return &NotFoundError{ResourceType: resourceType}
-		case 429:
-			return &RateLimitError{}
-		case 422:
-			if strings.Contains(err.Error(), "already_exists") {
-				return &AlreadyExistsError{ResourceType: resourceType}
-			}
-			return fmt.Errorf("GitHub API error (status %d): %s", ghErr.Response.StatusCode, ghErr.Message)
-		default:
-			// Return the original error with status code for other cases
-			return fmt.Errorf("GitHub API error (status %d): %s", ghErr.Response.StatusCode, ghErr.Message)
-		}
-	}
-
-	// If it's not a GitHub error response, return the original error
-	return err
 }

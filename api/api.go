@@ -22,15 +22,10 @@ THE SOFTWARE.
 package api
 
 import (
-	"context"
-	"errors"
-	"net/http"
-
-	"github.com/google/go-github/v59/github"
 	"github.com/tnagatomi/gh-fuda/option"
 )
 
-// APIClient is a interface for the API client
+// APIClient is an interface for the API client
 type APIClient interface {
 	// Repository label operations
 	CreateLabel(label option.Label, repo option.Repo) error
@@ -41,109 +36,4 @@ type APIClient interface {
 	// Helper methods for GraphQL operations
 	GetRepositoryID(repo option.Repo) (string, error)
 	GetLabelID(repo option.Repo, labelName string) (string, error)
-}
-
-// API is a wrapper around the GitHub client
-type API struct {
-	client *github.Client
-}
-
-// NewAPI returns new API
-func NewAPI(client *http.Client) (*API, error) {
-	return &API{
-		client: github.NewClient(client),
-	}, nil
-}
-
-// CreateLabel creates a label in the repository
-func (a *API) CreateLabel(label option.Label, repo option.Repo) error {
-	githubLabel := &github.Label{
-		Name:        github.String(label.Name),
-		Description: github.String(label.Description),
-		Color:       github.String(label.Color),
-	}
-
-	_, _, err := a.client.Issues.CreateLabel(context.Background(), repo.Owner, repo.Repo, githubLabel)
-
-	if err != nil {
-		var ghErr *github.ErrorResponse
-		if errors.As(err, &ghErr) && ghErr.Response.StatusCode == 404 {
-			return wrapGitHubError(err, ResourceTypeRepository)
-		}
-		return wrapGitHubError(err, ResourceTypeLabel)
-	}
-
-	return nil
-}
-
-// UpdateLabel updates an existing label in the repository
-func (a *API) UpdateLabel(label option.Label, repo option.Repo) error {
-	githubLabel := &github.Label{
-		Name:        github.String(label.Name),
-		Description: github.String(label.Description),
-		Color:       github.String(label.Color),
-	}
-
-	_, _, err := a.client.Issues.EditLabel(context.Background(), repo.Owner, repo.Repo, label.Name, githubLabel)
-
-	if err != nil {
-		return wrapGitHubError(err, ResourceTypeLabel)
-	}
-
-	return nil
-}
-
-// DeleteLabel deletes a label in the repository
-func (a *API) DeleteLabel(label string, repo option.Repo) error {
-	_, err := a.client.Issues.DeleteLabel(context.Background(), repo.Owner, repo.Repo, label)
-
-	if err != nil {
-		return wrapGitHubError(err, ResourceTypeLabel)
-	}
-
-	return nil
-}
-
-// ListLabels gets all labels in the repository
-func (a *API) ListLabels(repo option.Repo) ([]option.Label, error) {
-	var allLabels []*github.Label
-	
-	opts := &github.ListOptions{
-		PerPage: 100,
-	}
-	
-	for {
-		labels, resp, err := a.client.Issues.ListLabels(context.Background(), repo.Owner, repo.Repo, opts)
-		if err != nil {
-			return nil, wrapGitHubError(err, ResourceTypeRepository)
-		}
-		
-		allLabels = append(allLabels, labels...)
-		
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
-	}
-
-	var optionLabels []option.Label
-	for _, l := range allLabels {
-		optionLabels = append(optionLabels, option.Label{
-			Name:        l.GetName(),
-			Color:       l.GetColor(),
-			Description: l.GetDescription(),
-		})
-	}
-
-	return optionLabels, nil
-}
-
-// GetRepositoryID is not supported in REST API (stub for interface compatibility)
-func (a *API) GetRepositoryID(repo option.Repo) (string, error) {
-	return "", nil
-}
-
-// GetLabelID is not supported in REST API (stub for interface compatibility)
-func (a *API) GetLabelID(repo option.Repo, labelName string) (string, error) {
-	return "", nil
 }

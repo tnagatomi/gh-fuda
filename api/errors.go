@@ -82,6 +82,18 @@ func (e *AlreadyExistsError) Error() string {
 	return fmt.Sprintf("%s already exists", e.ResourceType)
 }
 
+// ScopeError indicates insufficient OAuth scopes
+type ScopeError struct {
+	RequiredScope string
+}
+
+func (e *ScopeError) Error() string {
+	if e.RequiredScope == "" {
+		return "insufficient token scopes"
+	}
+	return fmt.Sprintf("insufficient token scopes (required: %s)", e.RequiredScope)
+}
+
 // Helper functions to check error types
 func IsNotFound(err error) bool {
 	var notFoundErr *NotFoundError
@@ -106,6 +118,11 @@ func IsRateLimit(err error) bool {
 func IsAlreadyExists(err error) bool {
 	var alreadyExistsErr *AlreadyExistsError
 	return errors.As(err, &alreadyExistsErr)
+}
+
+func IsScopeError(err error) bool {
+	var scopeErr *ScopeError
+	return errors.As(err, &scopeErr)
 }
 
 // wrapGitHubError converts GitHub API errors to our custom error types

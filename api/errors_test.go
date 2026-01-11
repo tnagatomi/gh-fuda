@@ -247,6 +247,18 @@ func TestHelperFunctions(t *testing.T) {
 			checkFn:  IsAlreadyExists,
 			expected: false,
 		},
+		{
+			name:     "IsScopeError with ScopeError",
+			err:      &ScopeError{RequiredScope: "write:discussion"},
+			checkFn:  IsScopeError,
+			expected: true,
+		},
+		{
+			name:     "IsScopeError with other error",
+			err:      &ForbiddenError{},
+			checkFn:  IsScopeError,
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -303,6 +315,16 @@ func TestErrorMessages(t *testing.T) {
 			name:    "AlreadyExistsError without resource type",
 			err:     &AlreadyExistsError{ResourceType: ""},
 			wantMsg: "already exists",
+		},
+		{
+			name:    "ScopeError with required scope",
+			err:     &ScopeError{RequiredScope: "write:discussion"},
+			wantMsg: "insufficient token scopes (required: write:discussion)",
+		},
+		{
+			name:    "ScopeError without required scope",
+			err:     &ScopeError{RequiredScope: ""},
+			wantMsg: "insufficient token scopes",
 		},
 	}
 

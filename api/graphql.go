@@ -231,6 +231,37 @@ func (g *GraphQLAPI) UpdateLabel(label option.Label, repo option.Repo) error {
 	return nil
 }
 
+// DeleteLabel deletes a label from a repository
+func (g *GraphQLAPI) DeleteLabel(label string, repo option.Repo) error {
+	labelID, err := g.GetLabelID(repo, label)
+	if err != nil {
+		return err
+	}
+
+	var mutation struct {
+		DeleteLabel struct {
+			ClientMutationID *string
+		} `graphql:"deleteLabel(input: $input)"`
+	}
+
+	type DeleteLabelInput struct {
+		ID string `json:"id"`
+	}
+
+	variables := map[string]any{
+		"input": DeleteLabelInput{
+			ID: labelID,
+		},
+	}
+
+	err = g.client.Mutate("DeleteLabel", &mutation, variables)
+	if err != nil {
+		return wrapGraphQLError(err, ResourceTypeLabel)
+	}
+
+	return nil
+}
+
 // wrapGraphQLError converts GraphQL API errors to custom error types
 func wrapGraphQLError(err error, resourceType ResourceType) error {
 	if err == nil {
@@ -249,7 +280,7 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 	if strings.Contains(errMsg, "NOT_FOUND") {
 		return &NotFoundError{ResourceType: resourceType}
 	}
-	if strings.Contains(errMsg, "FORBIDDEN") {
+	if strings.Contains(errMsg, "FORBIDDEN") || strings.Contains(errMsg, "don't have permission") {
 		return &ForbiddenError{}
 	}
 	if strings.Contains(errMsg, "UNAUTHORIZED") || strings.Contains(errMsg, "401") {

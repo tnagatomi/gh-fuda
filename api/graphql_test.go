@@ -712,3 +712,151 @@ func TestGraphQLAPI_UpdateLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestGraphQLAPI_DeleteLabel(t *testing.T) {
+	tests := []struct {
+		name       string
+		label      string
+		repo       option.Repo
+		mock       func()
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name:  "success",
+			label: "bug",
+			repo:  option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				// GetLabelID call
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"label": map[string]any{
+									"id": "LA_123456",
+								},
+							},
+						},
+					})
+				// DeleteLabel mutation
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"deleteLabel": map[string]any{
+								"clientMutationId": nil,
+							},
+						},
+					})
+			},
+			wantErr: false,
+		},
+		{
+			name:  "label not found",
+			label: "nonexistent",
+			repo:  option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"label": nil,
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "label not found",
+		},
+		{
+			name:  "repository not found",
+			label: "bug",
+			repo:  option.Repo{Owner: "owner", Repo: "nonexistent"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "NOT_FOUND",
+								"message": "Could not resolve to a Repository with the name 'nonexistent'.",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "repository not found",
+		},
+		{
+			name:  "forbidden",
+			label: "bug",
+			repo:  option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				// GetLabelID call
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"label": map[string]any{
+									"id": "LA_123456",
+								},
+							},
+						},
+					})
+				// DeleteLabel mutation - forbidden
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"deleteLabel": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "FORBIDDEN",
+								"message": "You don't have permission to delete this label",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "forbidden",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer gock.Off()
+			if tt.mock != nil {
+				tt.mock()
+			}
+
+			g := newTestGraphQLAPI(t)
+			err := g.DeleteLabel(tt.label, tt.repo)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DeleteLabel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err.Error() != tt.wantErrMsg {
+				t.Errorf("DeleteLabel() error = %v, wantErrMsg %v", err.Error(), tt.wantErrMsg)
+				return
+			}
+
+			if !gock.IsDone() {
+				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			}
+		})
+	}
+}

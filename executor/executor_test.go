@@ -1606,27 +1606,31 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 			out := &bytes.Buffer{}
 			err := e.Empty(out, tt.args.repos)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Empty() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("Sync() gotOut = %v, want %v", gotOut, tt.wantOut)
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Empty() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Empty() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
+				}
 			}
-			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllListCalls(tt.mock.ListLabelsCalls, tt.wantListCall) {
 				t.Errorf("Empty() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
 			}
-			for i, call := range tt.mock.ListLabelsCalls {
-				if call.Repo != tt.wantListCall[i] {
-					t.Errorf("Empty() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
-				}
-			}
-			if len(tt.wantDeleteCall) != len(tt.mock.DeleteLabelCalls) {
+			if !containsAllDeleteCalls(tt.mock.DeleteLabelCalls, tt.wantDeleteCall) {
 				t.Errorf("Empty() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
-			}
-			for i, call := range tt.mock.DeleteLabelCalls {
-				if call.Label != tt.wantDeleteCall[i].Label || call.Repo != tt.wantDeleteCall[i].Repo {
-					t.Errorf("Empty() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
-				}
 			}
 		})
 	}

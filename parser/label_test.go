@@ -105,6 +105,66 @@ func TestLabel(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 		},
+		{
+			name: "Empty label name",
+			args: args{
+				input: "bug,,feature",
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "Single label name only - auto color",
+			args: args{
+				input: "bug",
+			},
+			want: []option.Label{
+				{
+					Name:        "bug",
+					Color:       GenerateColor("bug"),
+					Description: "",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Label with empty color and description",
+			args: args{
+				input: "bug::This is a bug",
+			},
+			want: []option.Label{
+				{
+					Name:        "bug",
+					Color:       GenerateColor("bug"),
+					Description: "This is a bug",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Mixed explicit and auto colors",
+			args: args{
+				input: "bug,enhancement:00ff00:Enhancement,feature::Feature request",
+			},
+			want: []option.Label{
+				{
+					Name:        "bug",
+					Color:       GenerateColor("bug"),
+					Description: "",
+				},
+				{
+					Name:        "enhancement",
+					Color:       "00ff00",
+					Description: "Enhancement",
+				},
+				{
+					Name:        "feature",
+					Color:       GenerateColor("feature"),
+					Description: "Feature request",
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

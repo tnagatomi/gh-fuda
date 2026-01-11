@@ -99,7 +99,7 @@ func TestLabelFromJSON(t *testing.T) {
 			errContains: "empty name",
 		},
 		{
-			name: "label with empty color",
+			name: "label with empty color - auto generate",
 			jsonContent: `[
 				{
 					"name": "test",
@@ -107,9 +107,23 @@ func TestLabelFromJSON(t *testing.T) {
 					"description": "Test"
 				}
 			]`,
-			want:        nil,
-			wantErr:     true,
-			errContains: "empty color",
+			want: []option.Label{
+				{Name: "test", Color: GenerateColor("test"), Description: "Test"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "label without color field - auto generate",
+			jsonContent: `[
+				{
+					"name": "bug",
+					"description": "Bug report"
+				}
+			]`,
+			want: []option.Label{
+				{Name: "bug", Color: GenerateColor("bug"), Description: "Bug report"},
+			},
+			wantErr: false,
 		},
 		{
 			name: "label with invalid color format",

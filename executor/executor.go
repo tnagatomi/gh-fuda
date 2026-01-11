@@ -50,7 +50,8 @@ func NewExecutor(client *http.Client, dryrun bool) (*Executor, error) {
 }
 
 // Create creates labels across multiple repositories
-func (e *Executor) Create(out io.Writer, repos []option.Repo, labels []option.Label) error {
+// If force is true, updates existing labels instead of failing
+func (e *Executor) Create(out io.Writer, repos []option.Repo, labels []option.Label, force bool) error {
 	er := NewExecutionResult()
 
 	for _, repo := range repos {
@@ -59,14 +60,43 @@ func (e *Executor) Create(out io.Writer, repos []option.Repo, labels []option.La
 			Errors: nil,
 		}
 
+		// For dry-run with force, we need to check existing labels to show accurate messages
+		var existingLabels []option.Label
+		if e.dryRun && force {
+			var err error
+			existingLabels, err = e.api.ListLabels(repo)
+			if err != nil {
+				repoResult.Errors = append(repoResult.Errors, err)
+				_, _ = fmt.Fprintf(out, "Failed to list labels for repository %q: %v\n", repo, err)
+				er.AddRepoResult(repoResult)
+				continue
+			}
+		}
+
 		for _, label := range labels {
 			if e.dryRun {
-				_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
+				if force && labelExists(label.Name, existingLabels) {
+					_, _ = fmt.Fprintf(out, "Would update label %q for repository %q\n", label, repo)
+				} else {
+					_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
+				}
 				continue
 			}
 
 			err := e.api.CreateLabel(label, repo)
 			if err != nil {
+				// If force flag is set and label already exists, try to update it
+				if force && api.IsAlreadyExists(err) {
+					err = e.api.UpdateLabel(label, repo)
+					if err != nil {
+						repoResult.Errors = append(repoResult.Errors, err)
+						_, _ = fmt.Fprintf(out, "Failed to update label %q for repository %q: %v\n", label, repo, err)
+						continue
+					}
+					_, _ = fmt.Fprintf(out, "Updated label %q for repository %q\n", label, repo)
+					continue
+				}
+
 				repoResult.Errors = append(repoResult.Errors, err)
 				_, _ = fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
 				continue

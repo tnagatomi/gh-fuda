@@ -18,9 +18,14 @@ func TestCreate(t *testing.T) {
 	tests := []struct {
 		name    string
 		dryrun  bool
+		force   bool
 		args    args
 		mock    *mock.MockAPI
 		wantCall []struct {
+			Label option.Label
+			Repo  option.Repo
+		}
+		wantUpdateCall []struct {
 			Label option.Label
 			Repo  option.Repo
 		}
@@ -226,6 +231,207 @@ Would create label "question" for repository "tnagatomi/mock-repo"
 				Repo  option.Repo
 			}{},
 		},
+		{
+			name:   "force flag - update existing label",
+			dryrun: false,
+			force:  true,
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "Updated description"},
+				},
+			},
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return &api.AlreadyExistsError{ResourceType: api.ResourceTypeLabel}
+				},
+				UpdateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return nil
+				},
+			},
+			wantOut: `Updated label "bug" for repository "tnagatomi/mock-repo"
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "Updated description", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+			wantUpdateCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "Updated description", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+		},
+		{
+			name:   "force flag false - fail on existing label",
+			dryrun: false,
+			force:  false,
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "Description"},
+				},
+			},
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return &api.AlreadyExistsError{ResourceType: api.ResourceTypeLabel}
+				},
+			},
+			wantOut: `Failed to create label "bug" for repository "tnagatomi/mock-repo": label already exists
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "Description", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+		},
+		{
+			name:   "force flag - update fails",
+			dryrun: false,
+			force:  true,
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "Description"},
+				},
+			},
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return &api.AlreadyExistsError{ResourceType: api.ResourceTypeLabel}
+				},
+				UpdateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return &api.ForbiddenError{}
+				},
+			},
+			wantOut: `Failed to update label "bug" for repository "tnagatomi/mock-repo": forbidden
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "Description", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+			wantUpdateCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "Description", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+		},
+		{
+			name:   "force flag - mixed create and update",
+			dryrun: false,
+			force:  true,
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "Bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "Enhancement"},
+				},
+			},
+			mock: &mock.MockAPI{
+				CreateLabelFunc: func(label option.Label, repo option.Repo) error {
+					if label.Name == "bug" {
+						return &api.AlreadyExistsError{ResourceType: api.ResourceTypeLabel}
+					}
+					return nil
+				},
+				UpdateLabelFunc: func(label option.Label, repo option.Repo) error {
+					return nil
+				},
+			},
+			wantOut: `Updated label "bug" for repository "tnagatomi/mock-repo"
+Created label "enhancement" for repository "tnagatomi/mock-repo"
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "Bug", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+				{Label: option.Label{Name: "enhancement", Description: "Enhancement", Color: "00ff00"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+			wantUpdateCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{
+				{Label: option.Label{Name: "bug", Description: "Bug", Color: "ff0000"}, Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+		},
+		{
+			name:   "dry-run with force flag - existing labels show update message",
+			dryrun: true,
+			force:  true,
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "Bug"},
+					{Name: "enhancement", Color: "00ff00", Description: "Enhancement"},
+				},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{{Name: "bug"}}, nil
+				},
+			},
+			wantOut: `Would update label "bug" for repository "tnagatomi/mock-repo"
+Would create label "enhancement" for repository "tnagatomi/mock-repo"
+`,
+			wantErr: false,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{},
+		},
+		{
+			name:   "dry-run with force flag - list labels fails",
+			dryrun: true,
+			force:  true,
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "non-existent-repo"},
+				},
+				labels: []option.Label{
+					{Name: "bug", Color: "ff0000", Description: "Bug"},
+				},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return nil, &api.NotFoundError{ResourceType: api.ResourceTypeRepository}
+				},
+			},
+			wantOut: `Failed to list labels for repository "tnagatomi/non-existent-repo": repository not found
+`,
+			wantErr: true,
+			wantCall: []struct {
+				Label option.Label
+				Repo  option.Repo
+			}{},
+		},
 	}
 
 	for _, tt := range tests {
@@ -235,7 +441,7 @@ Would create label "question" for repository "tnagatomi/mock-repo"
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err := e.Create(out, tt.args.repos, tt.args.labels)
+			err := e.Create(out, tt.args.repos, tt.args.labels, tt.force)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -250,6 +456,14 @@ Would create label "question" for repository "tnagatomi/mock-repo"
 			for i, call := range tt.mock.CreateLabelCalls {
 				if call.Label != tt.wantCall[i].Label || call.Repo != tt.wantCall[i].Repo {
 					t.Errorf("Create() wantCall = %v, got %v", tt.wantCall, tt.mock.CreateLabelCalls)
+				}
+			}
+			if len(tt.wantUpdateCall) != len(tt.mock.UpdateLabelCalls) {
+				t.Errorf("Create() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
+			}
+			for i, call := range tt.mock.UpdateLabelCalls {
+				if call.Label != tt.wantUpdateCall[i].Label || call.Repo != tt.wantUpdateCall[i].Repo {
+					t.Errorf("Create() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
 				}
 			}
 		})

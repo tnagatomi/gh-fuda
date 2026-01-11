@@ -27,6 +27,7 @@ The codebase follows a clean layered architecture:
    - Each command (list, create, delete, sync, empty) has its own file
    - Commands parse arguments and delegate to executor
    - `create` and `sync` commands support JSON file input via `--json` flag
+   - `create` command supports `--force` flag to update existing labels instead of failing
    - `list` command does not use dry-run mode as it's a read-only operation
 
 2. **executor/** - Business logic layer
@@ -89,7 +90,7 @@ func TestFunctionName(t *testing.T) {
   - `ListLabels(repo option.Repo) ([]option.Label, error)` - Returns full label details including color and description
 - Executor methods accept structured data instead of strings:
   - `List(out io.Writer, repos []option.Repo) error` - Lists all labels with their details
-  - `Create(out io.Writer, repos []option.Repo, labels []option.Label) error`
+  - `Create(out io.Writer, repos []option.Repo, labels []option.Label, force bool) error` - Creates labels; with force=true, updates existing labels instead of failing
   - `Delete(out io.Writer, repos []option.Repo, labels []string) error`
   - `Sync(out io.Writer, repos []option.Repo, labels []option.Label) error`
   - `Empty(out io.Writer, repos []option.Repo) error`

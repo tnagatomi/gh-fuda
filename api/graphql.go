@@ -27,6 +27,7 @@ import (
 	"sync"
 
 	"github.com/cli/go-gh/v2/pkg/api"
+	graphql "github.com/cli/shurcooL-graphql"
 	"github.com/tnagatomi/gh-fuda/option"
 )
 
@@ -69,8 +70,8 @@ func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (option.GraphQLID, error)
 	}
 
 	variables := map[string]any{
-		"owner": repo.Owner,
-		"name":  repo.Repo,
+		"owner": graphql.String(repo.Owner),
+		"name":  graphql.String(repo.Repo),
 	}
 
 	err := g.client.Query("RepositoryID", &query, variables)
@@ -97,9 +98,9 @@ func (g *GraphQLAPI) GetLabelID(repo option.Repo, labelName string) (option.Grap
 	}
 
 	variables := map[string]any{
-		"owner":     repo.Owner,
-		"name":      repo.Repo,
-		"labelName": labelName,
+		"owner":     graphql.String(repo.Owner),
+		"name":      graphql.String(repo.Repo),
+		"labelName": graphql.String(labelName),
 	}
 
 	err := g.client.Query("LabelID", &query, variables)
@@ -117,7 +118,7 @@ func (g *GraphQLAPI) GetLabelID(repo option.Repo, labelName string) (option.Grap
 // ListLabels fetches all labels in a repository with pagination
 func (g *GraphQLAPI) ListLabels(repo option.Repo) ([]option.Label, error) {
 	var allLabels []option.Label
-	var cursor *string
+	var cursor *graphql.String
 
 	for {
 		var query struct {
@@ -137,8 +138,8 @@ func (g *GraphQLAPI) ListLabels(repo option.Repo) ([]option.Label, error) {
 		}
 
 		variables := map[string]any{
-			"owner":  repo.Owner,
-			"name":   repo.Repo,
+			"owner":  graphql.String(repo.Owner),
+			"name":   graphql.String(repo.Repo),
 			"cursor": cursor,
 		}
 
@@ -158,7 +159,8 @@ func (g *GraphQLAPI) ListLabels(repo option.Repo) ([]option.Label, error) {
 		if !query.Repository.Labels.PageInfo.HasNextPage {
 			break
 		}
-		cursor = &query.Repository.Labels.PageInfo.EndCursor
+		endCursor := graphql.String(query.Repository.Labels.PageInfo.EndCursor)
+		cursor = &endCursor
 	}
 
 	return allLabels, nil
@@ -343,7 +345,7 @@ func (g *GraphQLAPI) SearchLabelables(repo option.Repo, labelName string) ([]opt
 // searchIssuesAndPRs searches for issues and pull requests with a specific label
 func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]option.Labelable, error) {
 	var allLabelables []option.Labelable
-	var cursor *string
+	var cursor *graphql.String
 
 	searchQuery := fmt.Sprintf("repo:%s/%s label:\"%s\"", repo.Owner, repo.Repo, escapeSearchQuery(labelName))
 
@@ -363,7 +365,7 @@ func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]o
 		}
 
 		variables := map[string]any{
-			"query":  searchQuery,
+			"query":  graphql.String(searchQuery),
 			"cursor": cursor,
 		}
 
@@ -394,7 +396,8 @@ func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]o
 		if !query.Search.PageInfo.HasNextPage {
 			break
 		}
-		cursor = &query.Search.PageInfo.EndCursor
+		endCursor := graphql.String(query.Search.PageInfo.EndCursor)
+		cursor = &endCursor
 	}
 
 	return allLabelables, nil
@@ -415,7 +418,7 @@ type pullRequestFragment struct {
 // searchDiscussions searches for discussions with a specific label in a repository
 func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]option.Labelable, error) {
 	var allLabelables []option.Labelable
-	var cursor *string
+	var cursor *graphql.String
 
 	searchQuery := fmt.Sprintf("repo:%s/%s label:\"%s\"", repo.Owner, repo.Repo, escapeSearchQuery(labelName))
 
@@ -433,7 +436,7 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 		}
 
 		variables := map[string]any{
-			"query":  searchQuery,
+			"query":  graphql.String(searchQuery),
 			"cursor": cursor,
 		}
 
@@ -469,7 +472,8 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 		if !query.Search.PageInfo.HasNextPage {
 			break
 		}
-		cursor = &query.Search.PageInfo.EndCursor
+		endCursor := graphql.String(query.Search.PageInfo.EndCursor)
+		cursor = &endCursor
 	}
 
 	return allLabelables, nil

@@ -176,8 +176,3 @@ GitHub Actions workflows:
 - `golangci-lint.yml` - Code quality checks
 - `release.yml` - Automated release process
 
-## Version History
-
-- **v2.1.0** (upcoming) - Added random color pick feature: colors are now optional and auto-generated from label names using SHA-256 hash when omitted.
-- **v2.0.0** - Breaking change: `ListLabels` now returns `[]option.Label` instead of `[]string`. Added `list` command with pagination support.
-- **v1.0.0** - Initial stable release

@@ -78,7 +78,7 @@ func NewSyncCmd() *cobra.Command {
 
 	syncCmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Do not prompt for confirmation")
 	syncCmd.Flags().BoolVar(&forceDeprecated, "force", false, "Do not prompt for confirmation")
-	_ = syncCmd.Flags().MarkDeprecated("force", "use -y instead")
+	_ = syncCmd.Flags().MarkDeprecated("force", "use -y/--yes instead")
 
 	return syncCmd
 }

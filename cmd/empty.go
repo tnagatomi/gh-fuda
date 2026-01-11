@@ -73,7 +73,7 @@ func NewEmptyCmd() *cobra.Command {
 
 	emptyCmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Do not prompt for confirmation")
 	emptyCmd.Flags().BoolVar(&forceDeprecated, "force", false, "Do not prompt for confirmation")
-	_ = emptyCmd.Flags().MarkDeprecated("force", "use -y instead")
+	_ = emptyCmd.Flags().MarkDeprecated("force", "use -y/--yes instead")
 
 	return emptyCmd
 }

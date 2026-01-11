@@ -76,7 +76,7 @@ func NewDeleteCmd() *cobra.Command {
 
 	deleteCmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Do not prompt for confirmation")
 	deleteCmd.Flags().BoolVar(&forceDeprecated, "force", false, "Do not prompt for confirmation")
-	_ = deleteCmd.Flags().MarkDeprecated("force", "use -y instead")
+	_ = deleteCmd.Flags().MarkDeprecated("force", "use -y/--yes instead")
 
 	return deleteCmd
 }

@@ -144,7 +144,7 @@ func TestWorkerPool_Run_ErrorHandling(t *testing.T) {
 	if results[1].Success {
 		t.Error("results[1] should be failure")
 	}
-	if len(results[1].Errors) != 1 || results[1].Errors[0] != expectedErr {
+	if len(results[1].Errors) != 1 || !errors.Is(results[1].Errors[0], expectedErr) {
 		t.Errorf("results[1].Errors = %v, want [%v]", results[1].Errors, expectedErr)
 	}
 	if !results[2].Success {

@@ -300,9 +300,168 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 }
 
 // SearchLabelables searches for issues, pull requests, and discussions with a specific label
-// TODO: Implement
 func (g *GraphQLAPI) SearchLabelables(repo option.Repo, labelName string) ([]option.Labelable, error) {
-	return nil, fmt.Errorf("not implemented")
+	var allLabelables []option.Labelable
+
+	issuesAndPRs, err := g.searchIssuesAndPRs(repo, labelName)
+	if err != nil {
+		return nil, err
+	}
+	allLabelables = append(allLabelables, issuesAndPRs...)
+
+	discussions, err := g.searchDiscussions(repo, labelName)
+	if err != nil {
+		return nil, err
+	}
+	allLabelables = append(allLabelables, discussions...)
+
+	return allLabelables, nil
+}
+
+// searchIssuesAndPRs searches for issues and pull requests with a specific label
+func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]option.Labelable, error) {
+	var allLabelables []option.Labelable
+	var cursor *string
+
+	searchQuery := fmt.Sprintf("repo:%s/%s label:\"%s\"", repo.Owner, repo.Repo, labelName)
+
+	for {
+		var query struct {
+			Search struct {
+				Nodes []struct {
+					TypeName    string `graphql:"__typename"`
+					Issue       issueFragment       `graphql:"... on Issue"`
+					PullRequest pullRequestFragment `graphql:"... on PullRequest"`
+				}
+				PageInfo struct {
+					HasNextPage bool
+					EndCursor   string
+				}
+			} `graphql:"search(query: $query, type: ISSUE, first: 100, after: $cursor)"`
+		}
+
+		variables := map[string]any{
+			"query":  searchQuery,
+			"cursor": cursor,
+		}
+
+		err := g.client.Query("SearchIssuesAndPRs", &query, variables)
+		if err != nil {
+			return nil, wrapGraphQLError(err, ResourceTypeRepository)
+		}
+
+		for _, node := range query.Search.Nodes {
+			switch node.TypeName {
+			case "Issue":
+				allLabelables = append(allLabelables, option.Labelable{
+					ID:     node.Issue.ID,
+					Number: node.Issue.Number,
+					Title:  node.Issue.Title,
+					Type:   "Issue",
+				})
+			case "PullRequest":
+				allLabelables = append(allLabelables, option.Labelable{
+					ID:     node.PullRequest.ID,
+					Number: node.PullRequest.Number,
+					Title:  node.PullRequest.Title,
+					Type:   "PullRequest",
+				})
+			}
+		}
+
+		if !query.Search.PageInfo.HasNextPage {
+			break
+		}
+		cursor = &query.Search.PageInfo.EndCursor
+	}
+
+	return allLabelables, nil
+}
+
+type issueFragment struct {
+	ID     string
+	Number int
+	Title  string
+}
+
+type pullRequestFragment struct {
+	ID     string
+	Number int
+	Title  string
+}
+
+// searchDiscussions searches for discussions with a specific label in a repository
+func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]option.Labelable, error) {
+	var allLabelables []option.Labelable
+	var cursor *string
+
+	for {
+		var query struct {
+			Repository struct {
+				Discussions struct {
+					Nodes []struct {
+						ID     string
+						Number int
+						Title  string
+						Labels struct {
+							Nodes []struct {
+								Name string
+							}
+						} `graphql:"labels(first: 100)"`
+					}
+					PageInfo struct {
+						HasNextPage bool
+						EndCursor   string
+					}
+				} `graphql:"discussions(first: 100, after: $cursor)"`
+			} `graphql:"repository(owner: $owner, name: $name)"`
+		}
+
+		variables := map[string]any{
+			"owner":  repo.Owner,
+			"name":   repo.Repo,
+			"cursor": cursor,
+		}
+
+		err := g.client.Query("SearchDiscussions", &query, variables)
+		if err != nil {
+			errMsg := err.Error()
+			// Check for explicit errors first
+			if strings.Contains(errMsg, "Could not resolve to a Repository") {
+				return nil, wrapGraphQLError(err, ResourceTypeRepository)
+			}
+			if strings.Contains(errMsg, "FORBIDDEN") || strings.Contains(errMsg, "don't have permission") {
+				return nil, wrapGraphQLError(err, ResourceTypeRepository)
+			}
+			// If discussions are not enabled, just return empty
+			if strings.Contains(errMsg, "discussions") {
+				return allLabelables, nil
+			}
+			return nil, wrapGraphQLError(err, ResourceTypeRepository)
+		}
+
+		for _, node := range query.Repository.Discussions.Nodes {
+			// Check if this discussion has the target label
+			for _, label := range node.Labels.Nodes {
+				if strings.EqualFold(label.Name, labelName) {
+					allLabelables = append(allLabelables, option.Labelable{
+						ID:     node.ID,
+						Number: node.Number,
+						Title:  node.Title,
+						Type:   "Discussion",
+					})
+					break
+				}
+			}
+		}
+
+		if !query.Repository.Discussions.PageInfo.HasNextPage {
+			break
+		}
+		cursor = &query.Repository.Discussions.PageInfo.EndCursor
+	}
+
+	return allLabelables, nil
 }
 
 // AddLabelsToLabelable adds labels to a labelable resource (issue, PR, or discussion)

@@ -860,3 +860,329 @@ func TestGraphQLAPI_DeleteLabel(t *testing.T) {
 		})
 	}
 }
+
+func TestGraphQLAPI_SearchLabelables(t *testing.T) {
+	tests := []struct {
+		name       string
+		repo       option.Repo
+		labelName  string
+		mock       func()
+		want       []option.Labelable
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name:      "success - issues and PRs",
+			repo:      option.Repo{Owner: "owner", Repo: "repo"},
+			labelName: "bug",
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"search": map[string]any{
+								"nodes": []map[string]any{
+									{
+										"__typename": "Issue",
+										"id":         "I_123",
+										"number":     1,
+										"title":      "Bug issue",
+									},
+									{
+										"__typename": "PullRequest",
+										"id":         "PR_456",
+										"number":     2,
+										"title":      "Fix bug PR",
+									},
+								},
+								"pageInfo": map[string]any{
+									"hasNextPage": false,
+									"endCursor":   "",
+								},
+							},
+						},
+					})
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"discussions": map[string]any{
+									"nodes":    []map[string]any{},
+									"pageInfo": map[string]any{
+										"hasNextPage": false,
+										"endCursor":   "",
+									},
+								},
+							},
+						},
+					})
+			},
+			want: []option.Labelable{
+				{ID: "I_123", Number: 1, Title: "Bug issue", Type: "Issue"},
+				{ID: "PR_456", Number: 2, Title: "Fix bug PR", Type: "PullRequest"},
+			},
+			wantErr: false,
+		},
+		{
+			name:      "success - with discussions",
+			repo:      option.Repo{Owner: "owner", Repo: "repo"},
+			labelName: "question",
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"search": map[string]any{
+								"nodes": []map[string]any{},
+								"pageInfo": map[string]any{
+									"hasNextPage": false,
+									"endCursor":   "",
+								},
+							},
+						},
+					})
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"discussions": map[string]any{
+									"nodes": []map[string]any{
+										{
+											"id":     "D_789",
+											"number": 3,
+											"title":  "Question discussion",
+											"labels": map[string]any{
+												"nodes": []map[string]any{
+													{"name": "question"},
+												},
+											},
+										},
+									},
+									"pageInfo": map[string]any{
+										"hasNextPage": false,
+										"endCursor":   "",
+									},
+								},
+							},
+						},
+					})
+			},
+			want: []option.Labelable{
+				{ID: "D_789", Number: 3, Title: "Question discussion", Type: "Discussion"},
+			},
+			wantErr: false,
+		},
+		{
+			name:      "empty result",
+			repo:      option.Repo{Owner: "owner", Repo: "repo"},
+			labelName: "nonexistent",
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"search": map[string]any{
+								"nodes": []map[string]any{},
+								"pageInfo": map[string]any{
+									"hasNextPage": false,
+									"endCursor":   "",
+								},
+							},
+						},
+					})
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"discussions": map[string]any{
+									"nodes":    []map[string]any{},
+									"pageInfo": map[string]any{
+										"hasNextPage": false,
+										"endCursor":   "",
+									},
+								},
+							},
+						},
+					})
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:      "issue search - repository not found",
+			repo:      option.Repo{Owner: "owner", Repo: "nonexistent"},
+			labelName: "bug",
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"search": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "NOT_FOUND",
+								"message": "Could not resolve to a Repository with the name 'nonexistent'.",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "repository not found",
+		},
+		{
+			name:      "issue search - forbidden",
+			repo:      option.Repo{Owner: "owner", Repo: "private"},
+			labelName: "bug",
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"search": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "FORBIDDEN",
+								"message": "You don't have permission to access this repository",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "forbidden",
+		},
+		{
+			name:      "discussion search - repository not found",
+			repo:      option.Repo{Owner: "owner", Repo: "nonexistent"},
+			labelName: "bug",
+			mock: func() {
+				// Issue search succeeds
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"search": map[string]any{
+								"nodes": []map[string]any{},
+								"pageInfo": map[string]any{
+									"hasNextPage": false,
+									"endCursor":   "",
+								},
+							},
+						},
+					})
+				// Discussion search fails with repository not found
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "NOT_FOUND",
+								"message": "Could not resolve to a Repository with the name 'nonexistent'.",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "repository not found",
+		},
+		{
+			name:      "discussion search - forbidden",
+			repo:      option.Repo{Owner: "owner", Repo: "private"},
+			labelName: "bug",
+			mock: func() {
+				// Issue search succeeds
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"search": map[string]any{
+								"nodes": []map[string]any{
+									{
+										"__typename": "Issue",
+										"id":         "I_123",
+										"number":     1,
+										"title":      "Bug issue",
+									},
+								},
+								"pageInfo": map[string]any{
+									"hasNextPage": false,
+									"endCursor":   "",
+								},
+							},
+						},
+					})
+				// Discussion search fails with forbidden
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "FORBIDDEN",
+								"message": "You don't have permission to access discussions",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "forbidden",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer gock.Off()
+			if tt.mock != nil {
+				tt.mock()
+			}
+
+			g := newTestGraphQLAPI(t)
+			got, err := g.SearchLabelables(tt.repo, tt.labelName)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SearchLabelables() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err.Error() != tt.wantErrMsg {
+				t.Errorf("SearchLabelables() error = %v, wantErrMsg %v", err.Error(), tt.wantErrMsg)
+				return
+			}
+			if !tt.wantErr {
+				if len(got) != len(tt.want) {
+					t.Errorf("SearchLabelables() got %d items, want %d", len(got), len(tt.want))
+					return
+				}
+				for i, item := range got {
+					if item != tt.want[i] {
+						t.Errorf("SearchLabelables()[%d] = %v, want %v", i, item, tt.want[i])
+					}
+				}
+			}
+
+			if !gock.IsDone() {
+				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			}
+		})
+	}
+}

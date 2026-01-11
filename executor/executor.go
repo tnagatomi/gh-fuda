@@ -94,7 +94,6 @@ func (e *Executor) createParallel(out io.Writer, repos []option.Repo, labels []o
 	jobs := make([]Job, len(repos))
 
 	for i, repo := range repos {
-		repo := repo // capture loop variable
 		jobs[i] = Job{
 			ID: i,
 			Func: func() *JobResult {
@@ -178,7 +177,6 @@ func (e *Executor) deleteParallel(out io.Writer, repos []option.Repo, labels []s
 	jobs := make([]Job, len(repos))
 
 	for i, repo := range repos {
-		repo := repo // capture loop variable
 		jobs[i] = Job{
 			ID: i,
 			Func: func() *JobResult {
@@ -274,7 +272,6 @@ func (e *Executor) syncParallel(out io.Writer, repos []option.Repo, labels []opt
 	jobs := make([]Job, len(repos))
 
 	for i, repo := range repos {
-		repo := repo // capture loop variable
 		jobs[i] = Job{
 			ID: i,
 			Func: func() *JobResult {
@@ -364,7 +361,6 @@ func (e *Executor) List(out io.Writer, repos []option.Repo) error {
 	jobs := make([]Job, len(repos))
 
 	for i, repo := range repos {
-		repo := repo // capture loop variable
 		jobs[i] = Job{
 			ID: i,
 			Func: func() *JobResult {
@@ -461,7 +457,6 @@ func (e *Executor) emptyParallel(out io.Writer, repos []option.Repo) error {
 	jobs := make([]Job, len(repos))
 
 	for i, repo := range repos {
-		repo := repo // capture loop variable
 		jobs[i] = Job{
 			ID: i,
 			Func: func() *JobResult {
@@ -581,7 +576,6 @@ func (e *Executor) mergeParallel(out io.Writer, repos []option.Repo, fromLabel, 
 	jobs := make([]Job, len(repos))
 
 	for i, repo := range repos {
-		repo := repo // capture loop variable
 		jobs[i] = Job{
 			ID: i,
 			Func: func() *JobResult {

@@ -44,6 +44,7 @@ type JobResult struct {
 	Output  string
 	Success bool
 	Error   error
+	Errors  []error
 }
 
 // WorkerPool manages parallel job execution with a fixed number of workers

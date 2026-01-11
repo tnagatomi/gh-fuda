@@ -51,68 +51,105 @@ func NewExecutor(dryrun bool) (*Executor, error) {
 // Create creates labels across multiple repositories
 // If force is true, updates existing labels instead of failing
 func (e *Executor) Create(out io.Writer, repos []option.Repo, labels []option.Label, force bool) error {
-	er := NewExecutionResult()
+	// Dry-run mode: execute sequentially with immediate output
+	if e.dryRun {
+		return e.createDryRun(out, repos, labels, force)
+	}
 
+	// Normal mode: execute in parallel
+	return e.createParallel(out, repos, labels, force)
+}
+
+func (e *Executor) createDryRun(out io.Writer, repos []option.Repo, labels []option.Label, force bool) error {
+	var hasError bool
 	for _, repo := range repos {
-		repoResult := &RepoResult{
-			Repo:   repo.String(),
-			Errors: nil,
-		}
-
-		// For dry-run with force, we need to check existing labels to show accurate messages
 		var existingLabels []option.Label
-		if e.dryRun && force {
+		if force {
 			var err error
 			existingLabels, err = e.api.ListLabels(repo)
 			if err != nil {
-				repoResult.Errors = append(repoResult.Errors, err)
 				_, _ = fmt.Fprintf(out, "Failed to list labels for repository %q: %v\n", repo, err)
-				er.AddRepoResult(repoResult)
+				hasError = true
 				continue
 			}
 		}
 
 		for _, label := range labels {
-			if e.dryRun {
-				if force && labelExists(label.Name, existingLabels) {
-					_, _ = fmt.Fprintf(out, "Would update label %q for repository %q\n", label, repo)
-				} else {
-					_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
-				}
-				continue
+			if force && labelExists(label.Name, existingLabels) {
+				_, _ = fmt.Fprintf(out, "Would update label %q for repository %q\n", label, repo)
+			} else {
+				_, _ = fmt.Fprintf(out, "Would create label %q for repository %q\n", label, repo)
 			}
+		}
+	}
+	if hasError {
+		return fmt.Errorf("some operations failed")
+	}
+	return nil
+}
 
-			err := e.api.CreateLabel(label, repo)
-			if err != nil {
-				// If force flag is set and label already exists, try to update it
-				if force && api.IsAlreadyExists(err) {
-					err = e.api.UpdateLabel(label, repo)
-					if err != nil {
-						repoResult.Errors = append(repoResult.Errors, err)
-						_, _ = fmt.Fprintf(out, "Failed to update label %q for repository %q: %v\n", label, repo, err)
-						continue
-					}
-					_, _ = fmt.Fprintf(out, "Updated label %q for repository %q\n", label, repo)
+func (e *Executor) createParallel(out io.Writer, repos []option.Repo, labels []option.Label, force bool) error {
+	wp := NewWorkerPool(out)
+	jobs := make([]Job, len(repos))
+
+	for i, repo := range repos {
+		repo := repo // capture loop variable
+		jobs[i] = Job{
+			ID: i,
+			Func: func() *JobResult {
+				return e.createLabelsForRepo(repo, labels, force)
+			},
+		}
+	}
+
+	results := wp.Run(jobs)
+	wp.ClearProgress()
+
+	// Output all results together
+	er := NewExecutionResult()
+	for i, result := range results {
+		_, _ = fmt.Fprint(out, result.Output)
+		er.AddRepoResult(&RepoResult{
+			Repo:   repos[i].String(),
+			Errors: result.Errors,
+		})
+	}
+
+	_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+	return er.Err()
+}
+
+func (e *Executor) createLabelsForRepo(repo option.Repo, labels []option.Label, force bool) *JobResult {
+	var output string
+	var errors []error
+
+	for _, label := range labels {
+		err := e.api.CreateLabel(label, repo)
+		if err != nil {
+			// If force flag is set and label already exists, try to update it
+			if force && api.IsAlreadyExists(err) {
+				err = e.api.UpdateLabel(label, repo)
+				if err != nil {
+					output += fmt.Sprintf("Failed to update label %q for repository %q: %v\n", label, repo, err)
+					errors = append(errors, err)
 					continue
 				}
-
-				repoResult.Errors = append(repoResult.Errors, err)
-				_, _ = fmt.Fprintf(out, "Failed to create label %q for repository %q: %v\n", label, repo, err)
+				output += fmt.Sprintf("Updated label %q for repository %q\n", label, repo)
 				continue
 			}
-			_, _ = fmt.Fprintf(out, "Created label %q for repository %q\n", label, repo)
-		}
 
-		if !e.dryRun {
-			er.AddRepoResult(repoResult)
+			output += fmt.Sprintf("Failed to create label %q for repository %q: %v\n", label, repo, err)
+			errors = append(errors, err)
+			continue
 		}
+		output += fmt.Sprintf("Created label %q for repository %q\n", label, repo)
 	}
 
-	if !e.dryRun {
-		_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
+	return &JobResult{
+		Output:  output,
+		Success: len(errors) == 0,
+		Errors:  errors,
 	}
-
-	return er.Err()
 }
 
 // Delete deletes labels across multiple repositories

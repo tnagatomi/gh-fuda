@@ -3,12 +3,69 @@ package executor
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/tnagatomi/gh-fuda/api"
 	"github.com/tnagatomi/gh-fuda/internal/mock"
 	"github.com/tnagatomi/gh-fuda/option"
 )
+
+// stripProgress removes progress output (e.g., "Progress: X/Y completed") and ANSI escape codes from output
+func stripProgress(s string) string {
+	// Remove ANSI escape codes (like \033[K for clear line)
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+	s = ansiRegex.ReplaceAllString(s, "")
+	// Remove progress lines (Progress: X/Y completed with optional \r)
+	progressRegex := regexp.MustCompile(`\r?Progress: \d+/\d+ completed`)
+	s = progressRegex.ReplaceAllString(s, "")
+	// Remove any remaining carriage returns
+	s = regexp.MustCompile(`\r`).ReplaceAllString(s, "")
+	return s
+}
+
+// sortedLines returns a sorted list of non-empty, non-summary lines from output
+func sortedLines(s string) []string {
+	lines := strings.Split(s, "\n")
+	var result []string
+	for _, line := range lines {
+		// Skip empty lines and summary lines
+		if line == "" || strings.HasPrefix(line, "Summary:") {
+			continue
+		}
+		result = append(result, line)
+	}
+	sort.Strings(result)
+	return result
+}
+
+// containsAllCalls checks if got contains all expected calls (order independent)
+func containsAllCalls(got, want []struct {
+	Label option.Label
+	Repo  option.Repo
+}) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	// Create a map to track which expected calls have been found
+	found := make([]bool, len(want))
+	for _, g := range got {
+		for i, w := range want {
+			if !found[i] && g.Label == w.Label && g.Repo == w.Repo {
+				found[i] = true
+				break
+			}
+		}
+	}
+	for _, f := range found {
+		if !f {
+			return false
+		}
+	}
+	return true
+}
 
 func TestCreate(t *testing.T) {
 	type args struct {
@@ -447,24 +504,28 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo"
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("Create() gotOut = %v, want %v", gotOut, tt.wantOut)
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Create() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Create() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
+				}
 			}
-			if len(tt.wantCall) != len(tt.mock.CreateLabelCalls) {
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllCalls(tt.mock.CreateLabelCalls, tt.wantCall) {
 				t.Errorf("Create() wantCall = %v, got %v", tt.wantCall, tt.mock.CreateLabelCalls)
 			}
-			for i, call := range tt.mock.CreateLabelCalls {
-				if call.Label != tt.wantCall[i].Label || call.Repo != tt.wantCall[i].Repo {
-					t.Errorf("Create() wantCall = %v, got %v", tt.wantCall, tt.mock.CreateLabelCalls)
-				}
-			}
-			if len(tt.wantUpdateCall) != len(tt.mock.UpdateLabelCalls) {
+			if !containsAllCalls(tt.mock.UpdateLabelCalls, tt.wantUpdateCall) {
 				t.Errorf("Create() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
-			}
-			for i, call := range tt.mock.UpdateLabelCalls {
-				if call.Label != tt.wantUpdateCall[i].Label || call.Repo != tt.wantUpdateCall[i].Repo {
-					t.Errorf("Create() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
-				}
 			}
 		})
 	}

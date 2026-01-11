@@ -1339,16 +1339,12 @@ Summary: 2 repositories succeeded, 1 failed
 				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("List() gotOut = %v, want %v", gotOut, tt.wantOut)
+			if gotOut := stripProgress(out.String()); gotOut != tt.wantOut {
+				t.Errorf("List() gotOut = %q, want %q", gotOut, tt.wantOut)
 			}
-			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllListCalls(tt.mock.ListLabelsCalls, tt.wantListCall) {
 				t.Errorf("List() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
-			}
-			for i, call := range tt.mock.ListLabelsCalls {
-				if call.Repo != tt.wantListCall[i] {
-					t.Errorf("List() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
-				}
 			}
 		})
 	}

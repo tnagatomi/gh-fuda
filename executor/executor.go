@@ -359,41 +359,69 @@ func (e *Executor) syncLabelsForRepo(repo option.Repo, labels []option.Label) *J
 
 // List lists labels across multiple repositories
 func (e *Executor) List(out io.Writer, repos []option.Repo) error {
+	wp := NewWorkerPool(out)
+	jobs := make([]Job, len(repos))
+
+	for i, repo := range repos {
+		repo := repo // capture loop variable
+		jobs[i] = Job{
+			ID: i,
+			Func: func() *JobResult {
+				return e.listLabelsForRepo(repo)
+			},
+		}
+	}
+
+	results := wp.Run(jobs)
+	wp.ClearProgress()
+
+	// Output all results together
 	er := NewExecutionResult()
-
-	for _, repo := range repos {
-		repoResult := &RepoResult{
-			Repo:   repo.String(),
-			Errors: nil,
-		}
-
-		labels, err := e.api.ListLabels(repo)
-		if err != nil {
-			repoResult.Errors = append(repoResult.Errors, err)
-			_, _ = fmt.Fprintf(out, "Failed to list labels for repository %q: %v\n", repo, err)
-			er.AddRepoResult(repoResult)
-			continue
-		}
-
-		if len(labels) == 0 {
-			_, _ = fmt.Fprintf(out, "Repository %q has no labels\n", repo)
-		} else {
-			_, _ = fmt.Fprintf(out, "Labels for repository %q:\n", repo)
-			for _, label := range labels {
-				if label.Description == "" {
-					_, _ = fmt.Fprintf(out, "  %s (#%s)\n", label.Name, label.Color)
-				} else {
-					_, _ = fmt.Fprintf(out, "  %s (#%s) - %s\n", label.Name, label.Color, label.Description)
-				}
-			}
-		}
-
-		er.AddRepoResult(repoResult)
+	for i, result := range results {
+		_, _ = fmt.Fprint(out, result.Output)
+		er.AddRepoResult(&RepoResult{
+			Repo:   repos[i].String(),
+			Errors: result.Errors,
+		})
 	}
 
 	_, _ = fmt.Fprintf(out, "\n%s\n", er.Summary())
-
 	return er.Err()
+}
+
+func (e *Executor) listLabelsForRepo(repo option.Repo) *JobResult {
+	var output string
+	var errors []error
+
+	labels, err := e.api.ListLabels(repo)
+	if err != nil {
+		output += fmt.Sprintf("Failed to list labels for repository %q: %v\n", repo, err)
+		errors = append(errors, err)
+		return &JobResult{
+			Output:  output,
+			Success: false,
+			Errors:  errors,
+		}
+	}
+
+	if len(labels) == 0 {
+		output += fmt.Sprintf("Repository %q has no labels\n", repo)
+	} else {
+		output += fmt.Sprintf("Labels for repository %q:\n", repo)
+		for _, label := range labels {
+			if label.Description == "" {
+				output += fmt.Sprintf("  %s (#%s)\n", label.Name, label.Color)
+			} else {
+				output += fmt.Sprintf("  %s (#%s) - %s\n", label.Name, label.Color, label.Description)
+			}
+		}
+	}
+
+	return &JobResult{
+		Output:  output,
+		Success: true,
+		Errors:  errors,
+	}
 }
 
 // Empty empties labels across multiple repositories

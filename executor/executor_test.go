@@ -1846,7 +1846,7 @@ Would delete label "old-label" from repository "owner/repo"
 				},
 			},
 			wantOut: `Added label "new-label" to Issue #1 in repository "owner/repo"
-Failed to remove label "old-label" from Issue #1 in repository "owner/repo": forbidden
+Failed to remove label "old-label" from Issue #1 in repository "owner/repo" (target label "new-label" was added): forbidden
 Skipped deleting label "old-label" from repository "owner/repo": 0 items succeeded, 1 items failed
 
 Summary: 0 repositories succeeded, 1 failed

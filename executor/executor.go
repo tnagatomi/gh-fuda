@@ -664,7 +664,7 @@ func (e *Executor) mergeLabelsForRepo(repo option.Repo, fromLabel, toLabel strin
 		// Remove source label
 		err = e.api.RemoveLabelsFromLabelable(item.ID, []string{fromLabelID})
 		if err != nil {
-			fmt.Fprintf(&output, "Failed to remove label %q from %s #%d in repository %q: %v\n", fromLabel, item.Type, item.Number, repo, err)
+			fmt.Fprintf(&output, "Failed to remove label %q from %s #%d in repository %q (target label %q was added): %v\n", fromLabel, item.Type, item.Number, repo, toLabel, err)
 			errors = append(errors, err)
 			failCount++
 			continue

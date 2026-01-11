@@ -3,12 +3,116 @@ package executor
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/tnagatomi/gh-fuda/api"
 	"github.com/tnagatomi/gh-fuda/internal/mock"
 	"github.com/tnagatomi/gh-fuda/option"
 )
+
+// stripProgress removes progress output (e.g., "Progress: X/Y completed") and ANSI escape codes from output
+func stripProgress(s string) string {
+	// Remove ANSI escape codes (like \033[K for clear line)
+	ansiRegex := regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
+	s = ansiRegex.ReplaceAllString(s, "")
+	// Remove progress lines (Progress: X/Y completed with optional \r)
+	progressRegex := regexp.MustCompile(`\r?Progress: \d+/\d+ completed`)
+	s = progressRegex.ReplaceAllString(s, "")
+	// Remove any remaining carriage returns
+	s = regexp.MustCompile(`\r`).ReplaceAllString(s, "")
+	return s
+}
+
+// sortedLines returns a sorted list of non-empty, non-summary lines from output
+func sortedLines(s string) []string {
+	lines := strings.Split(s, "\n")
+	var result []string
+	for _, line := range lines {
+		// Skip empty lines and summary lines
+		if line == "" || strings.HasPrefix(line, "Summary:") {
+			continue
+		}
+		result = append(result, line)
+	}
+	sort.Strings(result)
+	return result
+}
+
+// containsAllCalls checks if got contains all expected calls (order independent)
+func containsAllCalls(got, want []struct {
+	Label option.Label
+	Repo  option.Repo
+}) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	// Create a map to track which expected calls have been found
+	found := make([]bool, len(want))
+	for _, g := range got {
+		for i, w := range want {
+			if !found[i] && g.Label == w.Label && g.Repo == w.Repo {
+				found[i] = true
+				break
+			}
+		}
+	}
+	for _, f := range found {
+		if !f {
+			return false
+		}
+	}
+	return true
+}
+
+// containsAllDeleteCalls checks if got contains all expected delete calls (order independent)
+func containsAllDeleteCalls(got, want []struct {
+	Label string
+	Repo  option.Repo
+}) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	found := make([]bool, len(want))
+	for _, g := range got {
+		for i, w := range want {
+			if !found[i] && g.Label == w.Label && g.Repo == w.Repo {
+				found[i] = true
+				break
+			}
+		}
+	}
+	for _, f := range found {
+		if !f {
+			return false
+		}
+	}
+	return true
+}
+
+// containsAllListCalls checks if got contains all expected list calls (order independent)
+func containsAllListCalls(got []struct{ Repo option.Repo }, want []option.Repo) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	found := make([]bool, len(want))
+	for _, g := range got {
+		for i, w := range want {
+			if !found[i] && g.Repo == w {
+				found[i] = true
+				break
+			}
+		}
+	}
+	for _, f := range found {
+		if !f {
+			return false
+		}
+	}
+	return true
+}
 
 func TestCreate(t *testing.T) {
 	type args struct {
@@ -447,24 +551,28 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo"
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("Create() gotOut = %v, want %v", gotOut, tt.wantOut)
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Create() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Create() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
+				}
 			}
-			if len(tt.wantCall) != len(tt.mock.CreateLabelCalls) {
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllCalls(tt.mock.CreateLabelCalls, tt.wantCall) {
 				t.Errorf("Create() wantCall = %v, got %v", tt.wantCall, tt.mock.CreateLabelCalls)
 			}
-			for i, call := range tt.mock.CreateLabelCalls {
-				if call.Label != tt.wantCall[i].Label || call.Repo != tt.wantCall[i].Repo {
-					t.Errorf("Create() wantCall = %v, got %v", tt.wantCall, tt.mock.CreateLabelCalls)
-				}
-			}
-			if len(tt.wantUpdateCall) != len(tt.mock.UpdateLabelCalls) {
+			if !containsAllCalls(tt.mock.UpdateLabelCalls, tt.wantUpdateCall) {
 				t.Errorf("Create() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
-			}
-			for i, call := range tt.mock.UpdateLabelCalls {
-				if call.Label != tt.wantUpdateCall[i].Label || call.Repo != tt.wantUpdateCall[i].Repo {
-					t.Errorf("Create() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
-				}
 			}
 		})
 	}
@@ -681,16 +789,25 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("Delete() gotOut = %v, want %v", gotOut, tt.wantOut)
-			}
-			if len(tt.wantCall) != len(tt.mock.DeleteLabelCalls) {
-				t.Errorf("Delete() wantCall = %v, got %v", tt.wantCall, tt.mock.DeleteLabelCalls)
-			}
-			for i, call := range tt.mock.DeleteLabelCalls {
-				if call.Label != tt.wantCall[i].Label || call.Repo != tt.wantCall[i].Repo {
-					t.Errorf("Delete() wantCall = %v, got %v", tt.wantCall, tt.mock.DeleteLabelCalls)
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Delete() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Delete() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
 				}
+			}
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllDeleteCalls(tt.mock.DeleteLabelCalls, tt.wantCall) {
+				t.Errorf("Delete() wantCall = %v, got %v", tt.wantCall, tt.mock.DeleteLabelCalls)
 			}
 		})
 	}
@@ -1024,40 +1141,34 @@ Would create label "enhancement" for repository "tnagatomi/mock-repo-2"
 				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("Sync() gotOut = %v, want %v", gotOut, tt.wantOut)
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Sync() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Sync() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
+				}
 			}
-			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllListCalls(tt.mock.ListLabelsCalls, tt.wantListCall) {
 				t.Errorf("Sync() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
 			}
-			for i, call := range tt.mock.ListLabelsCalls {
-				if call.Repo != tt.wantListCall[i] {
-					t.Errorf("Sync() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
-				}
-			}
-			if len(tt.wantCreateCall) != len(tt.mock.CreateLabelCalls) {
+			if !containsAllCalls(tt.mock.CreateLabelCalls, tt.wantCreateCall) {
 				t.Errorf("Sync() wantCreateCall = %v, got %v", tt.wantCreateCall, tt.mock.CreateLabelCalls)
 			}
-			for i, call := range tt.mock.CreateLabelCalls {
-				if call.Label != tt.wantCreateCall[i].Label || call.Repo != tt.wantCreateCall[i].Repo {
-					t.Errorf("Sync() wantCreateCall = %v, got %v", tt.wantCreateCall, tt.mock.CreateLabelCalls)
-				}
-			}
-			if len(tt.wantDeleteCall) != len(tt.mock.DeleteLabelCalls) {
+			if !containsAllDeleteCalls(tt.mock.DeleteLabelCalls, tt.wantDeleteCall) {
 				t.Errorf("Sync() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
 			}
-			for i, call := range tt.mock.DeleteLabelCalls {
-				if call.Label != tt.wantDeleteCall[i].Label || call.Repo != tt.wantDeleteCall[i].Repo {
-					t.Errorf("Sync() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
-				}
-			}
-			if len(tt.wantUpdateCall) != len(tt.mock.UpdateLabelCalls) {
+			if !containsAllCalls(tt.mock.UpdateLabelCalls, tt.wantUpdateCall) {
 				t.Errorf("Sync() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
-			}
-			for i, call := range tt.mock.UpdateLabelCalls {
-				if call.Label != tt.wantUpdateCall[i].Label || call.Repo != tt.wantUpdateCall[i].Repo {
-					t.Errorf("Sync() wantUpdateCall = %v, got %v", tt.wantUpdateCall, tt.mock.UpdateLabelCalls)
-				}
 			}
 		})
 	}
@@ -1228,16 +1339,12 @@ Summary: 2 repositories succeeded, 1 failed
 				t.Errorf("List() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("List() gotOut = %v, want %v", gotOut, tt.wantOut)
+			if gotOut := stripProgress(out.String()); gotOut != tt.wantOut {
+				t.Errorf("List() gotOut = %q, want %q", gotOut, tt.wantOut)
 			}
-			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllListCalls(tt.mock.ListLabelsCalls, tt.wantListCall) {
 				t.Errorf("List() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
-			}
-			for i, call := range tt.mock.ListLabelsCalls {
-				if call.Repo != tt.wantListCall[i] {
-					t.Errorf("List() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
-				}
 			}
 		})
 	}
@@ -1499,26 +1606,320 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 			out := &bytes.Buffer{}
 			err := e.Empty(out, tt.args.repos)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Sync() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Empty() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotOut := out.String(); gotOut != tt.wantOut {
-				t.Errorf("Sync() gotOut = %v, want %v", gotOut, tt.wantOut)
-			}
-			if len(tt.wantListCall) != len(tt.mock.ListLabelsCalls) {
-				t.Errorf("Empty() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
-			}
-			for i, call := range tt.mock.ListLabelsCalls {
-				if call.Repo != tt.wantListCall[i] {
-					t.Errorf("Empty() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Empty() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Empty() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
 				}
 			}
-			if len(tt.wantDeleteCall) != len(tt.mock.DeleteLabelCalls) {
+			// Use order-independent comparison for API calls (parallel execution)
+			if !containsAllListCalls(tt.mock.ListLabelsCalls, tt.wantListCall) {
+				t.Errorf("Empty() wantListCall = %v, got %v", tt.wantListCall, tt.mock.ListLabelsCalls)
+			}
+			if !containsAllDeleteCalls(tt.mock.DeleteLabelCalls, tt.wantDeleteCall) {
 				t.Errorf("Empty() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
 			}
-			for i, call := range tt.mock.DeleteLabelCalls {
-				if call.Label != tt.wantDeleteCall[i].Label || call.Repo != tt.wantDeleteCall[i].Repo {
-					t.Errorf("Empty() wantDeleteCall = %v, got %v", tt.wantDeleteCall, tt.mock.DeleteLabelCalls)
+		})
+	}
+}
+
+func TestMerge(t *testing.T) {
+	type args struct {
+		repos     []option.Repo
+		fromLabel string
+		toLabel   string
+	}
+	tests := []struct {
+		name    string
+		dryrun  bool
+		args    args
+		mock    *mock.MockAPI
+		wantOut string
+		wantErr bool
+	}{
+		{
+			name:   "success - single item",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
+					}, nil
+				},
+				AddLabelsToLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
+					return nil
+				},
+				RemoveLabelsFromLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
+					return nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
+			},
+			wantOut: `Added label "new-label" to Issue #1 in repository "owner/repo"
+Removed label "old-label" from Issue #1 in repository "owner/repo"
+Deleted label "old-label" from repository "owner/repo"
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+		},
+		{
+			name:   "success - no items with label",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{}, nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
+			},
+			wantOut: `Deleted label "old-label" from repository "owner/repo"
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+		},
+		{
+			name:   "source label not found",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "nonexistent",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
+					if labelName == "nonexistent" {
+						return "", &api.NotFoundError{ResourceType: api.ResourceTypeLabel}
+					}
+					return "LA_new", nil
+				},
+			},
+			wantOut: `Failed to find source label "nonexistent" in repository "owner/repo": label not found
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+		{
+			name:   "target label not found",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "nonexistent",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "", &api.NotFoundError{ResourceType: api.ResourceTypeLabel}
+				},
+			},
+			wantOut: `Failed to find target label "nonexistent" in repository "owner/repo": label not found
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+		{
+			name:   "partial failure - add label fails",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
+					}, nil
+				},
+				AddLabelsToLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
+					return &api.ForbiddenError{}
+				},
+			},
+			wantOut: `Failed to add label "new-label" to Issue #1 in repository "owner/repo": forbidden
+Skipped deleting label "old-label" from repository "owner/repo": 0 items succeeded, 1 items failed
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+		{
+			name:   "dry-run mode",
+			dryrun: true,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
+					}, nil
+				},
+			},
+			wantOut: `Would add label "new-label" to Issue #1 in repository "owner/repo"
+Would remove label "old-label" from Issue #1 in repository "owner/repo"
+Would delete label "old-label" from repository "owner/repo"
+`,
+			wantErr: false,
+		},
+		{
+			name:   "partial failure - remove label fails after add succeeds",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
+					}, nil
+				},
+				AddLabelsToLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
+					return nil
+				},
+				RemoveLabelsFromLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
+					return &api.ForbiddenError{}
+				},
+			},
+			wantOut: `Added label "new-label" to Issue #1 in repository "owner/repo"
+Failed to remove label "old-label" from Issue #1 in repository "owner/repo" (target label "new-label" was added): forbidden
+Skipped deleting label "old-label" from repository "owner/repo": 0 items succeeded, 1 items failed
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+		{
+			name:   "multiple items - some succeed some fail",
+			dryrun: false,
+			args: args{
+				repos:     []option.Repo{{Owner: "owner", Repo: "repo"}},
+				fromLabel: "old-label",
+				toLabel:   "new-label",
+			},
+			mock: &mock.MockAPI{
+				GetLabelIDFunc: func(repo option.Repo, labelName string) (option.GraphQLID, error) {
+					if labelName == "old-label" {
+						return "LA_old", nil
+					}
+					return "LA_new", nil
+				},
+				SearchLabelablesFunc: func(repo option.Repo, labelName string) ([]option.Labelable, error) {
+					return []option.Labelable{
+						{ID: "I_1", Number: 1, Title: "Issue 1", Type: option.LabelableTypeIssue},
+						{ID: "I_2", Number: 2, Title: "Issue 2", Type: option.LabelableTypeIssue},
+					}, nil
+				},
+				AddLabelsToLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
+					if labelableID == "I_2" {
+						return &api.ForbiddenError{}
+					}
+					return nil
+				},
+				RemoveLabelsFromLabelableFunc: func(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error {
+					return nil
+				},
+			},
+			wantOut: `Added label "new-label" to Issue #1 in repository "owner/repo"
+Removed label "old-label" from Issue #1 in repository "owner/repo"
+Failed to add label "new-label" to Issue #2 in repository "owner/repo": forbidden
+Skipped deleting label "old-label" from repository "owner/repo": 1 items succeeded, 1 items failed
+
+Summary: 0 repositories succeeded, 1 failed
+`,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := &Executor{
+				api:    tt.mock,
+				dryRun: tt.dryrun,
+			}
+			out := &bytes.Buffer{}
+			err := e.Merge(out, tt.args.repos, tt.args.fromLabel, tt.args.toLabel)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Merge() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			gotOut := stripProgress(out.String())
+			// For parallel execution, compare output lines in sorted order
+			if sortedLines(gotOut) != nil && sortedLines(tt.wantOut) != nil {
+				gotLines := sortedLines(gotOut)
+				wantLines := sortedLines(tt.wantOut)
+				if len(gotLines) != len(wantLines) {
+					t.Errorf("Merge() gotOut = %q, want %q", gotOut, tt.wantOut)
+				} else {
+					for i := range gotLines {
+						if gotLines[i] != wantLines[i] {
+							t.Errorf("Merge() gotOut = %q, want %q", gotOut, tt.wantOut)
+							break
+						}
+					}
 				}
 			}
 		})

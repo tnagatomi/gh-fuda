@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-gh-fuda is a GitHub CLI extension that enables label operations across multiple repositories. It's written in Go and provides commands to list, create, delete, sync, and empty labels across GitHub repositories.
+gh-fuda is a GitHub CLI extension that enables label operations across multiple repositories. It's written in Go and provides commands to list, create, delete, sync, empty, and merge labels across GitHub repositories.
 
 ## Commands
 
@@ -24,11 +24,12 @@ gh-fuda is a GitHub CLI extension that enables label operations across multiple 
 The codebase follows a clean layered architecture:
 
 1. **cmd/** - CLI command implementations using Cobra
-   - Each command (list, create, delete, sync, empty) has its own file
+   - Each command (list, create, delete, sync, empty, merge) has its own file
    - Commands parse arguments and delegate to executor
    - `create` and `sync` commands support JSON file input via `--json` flag
    - `create` command supports `--force` flag to update existing labels instead of failing
    - `list` command does not use dry-run mode as it's a read-only operation
+   - `merge` command merges a source label into a target label across issues, PRs, and discussions
 
 2. **executor/** - Business logic layer
    - Contains the core functionality for label operations
@@ -40,11 +41,11 @@ The codebase follows a clean layered architecture:
 
 3. **api/** - GitHub API client wrapper
    - Defines `APIClient` interface for testability
-   - Wraps google/go-github client
+   - Uses GitHub GraphQL API via cli/go-gh v2 package
    - All API operations go through this layer
-   - Provides custom error types (`NotFoundError`, `ForbiddenError`, etc.) with `ResourceType` enum for better error categorization
+   - Provides custom error types (`NotFoundError`, `ForbiddenError`, `ScopeError`, etc.) with `ResourceType` enum for better error categorization
    - Error messages are simplified (e.g., "repository not found" instead of full details)
-   - `ListLabels` supports pagination to handle repositories with more than 100 labels
+   - `ListLabels` supports cursor-based pagination to handle repositories with more than 100 labels
 
 4. **parser/** - Command-line option parsing
    - Handles file-based input for labels and repositories
@@ -58,10 +59,21 @@ The codebase follows a clean layered architecture:
 
 ## Testing Approach
 
+### Unit Tests
 - Table-driven tests are the standard pattern
 - Mock API client (`internal/mock/api.go`) for unit testing executor logic
 - HTTP mocking with gock for API client tests
 - Test files are colocated with implementation files
+- Run with: `go test ./...`
+
+### E2E Tests
+- Located in `e2e_test.go` at the project root
+- Uses build tag `//go:build e2e` to separate from unit tests
+- Executes actual CLI commands against real GitHub API
+- Requires `GH_TOKEN` or `GITHUB_TOKEN` environment variable
+- Uses test repositories: `tnagatomi/gh-fuda-test-1`, `tnagatomi/gh-fuda-test-2`
+- Run with: `go test -tags=e2e -v`
+- CI runs with `concurrency: 1` to avoid conflicts between parallel jobs
 
 Example test pattern:
 ```go
@@ -89,12 +101,18 @@ func TestFunctionName(t *testing.T) {
   - `UpdateLabel(label option.Label, repo option.Repo) error`
   - `DeleteLabel(label string, repo option.Repo) error`
   - `ListLabels(repo option.Repo) ([]option.Label, error)` - Returns full label details including color and description
+  - `SearchLabelables(repo option.Repo, labelName string) ([]option.Labelable, error)` - Searches issues, PRs, and discussions with a label
+  - `AddLabelsToLabelable(labelableID string, labelIDs []string) error` - Adds labels to an issue/PR/discussion
+  - `RemoveLabelsFromLabelable(labelableID string, labelIDs []string) error` - Removes labels from an issue/PR/discussion
+  - `GetRepositoryID(repo option.Repo) (string, error)` - Gets repository node ID for GraphQL operations
+  - `GetLabelID(repo option.Repo, labelName string) (string, error)` - Gets label node ID for GraphQL operations
 - Executor methods accept structured data instead of strings:
   - `List(out io.Writer, repos []option.Repo) error` - Lists all labels with their details
   - `Create(out io.Writer, repos []option.Repo, labels []option.Label, force bool) error` - Creates labels; with force=true, updates existing labels instead of failing
   - `Delete(out io.Writer, repos []option.Repo, labels []string) error`
   - `Sync(out io.Writer, repos []option.Repo, labels []option.Label) error`
   - `Empty(out io.Writer, repos []option.Repo) error`
+  - `Merge(out io.Writer, repos []option.Repo, fromLabel, toLabel string) error` - Merges source label into target label
 - All executor functions accept APIClient interface for dependency injection
 
 ## Error Handling
@@ -173,7 +191,8 @@ Note: `--json`, `--yaml`, and `-l/--labels` flags are mutually exclusive. You mu
 ## CI/CD
 
 GitHub Actions workflows:
-- `test.yml` - Runs tests on multiple OS (Ubuntu, Windows, macOS)
+- `test.yml` - Runs unit tests on multiple OS (Ubuntu, Windows, macOS)
+- `e2e.yml` - Runs E2E tests with `concurrency: 1`
 - `golangci-lint.yml` - Code quality checks
 - `release.yml` - Automated release process
 

@@ -23,18 +23,14 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
-
-	"github.com/cli/go-gh/v2/pkg/api"
-	"github.com/tnagatomi/gh-fuda/executor"
-	"github.com/tnagatomi/gh-fuda/parser"
 
 	"github.com/spf13/cobra"
+	"github.com/tnagatomi/gh-fuda/executor"
+	"github.com/tnagatomi/gh-fuda/parser"
 )
 
 // NewSyncCmd represents the sync command
-func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
+func NewSyncCmd() *cobra.Command {
 	var syncCmd = &cobra.Command{
 		Use:   "sync",
 		Short: "Sync the labels in the specified repositories with the specified labels",
@@ -49,15 +45,8 @@ func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 				return fmt.Errorf("failed to parse repos option: %v", err)
 			}
 
-			client, err := api.NewHTTPClient(api.ClientOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to create gh http client: %v", err)
-			}
-
-			e, err := executor.NewExecutor(client, dryRun)
-			if err != nil {
-				return fmt.Errorf("failed to create executor: %v", err)
-			}
+			in := cmd.InOrStdin()
+			out := cmd.OutOrStdout()
 
 			if !dryRun && !force {
 				confirmed, err := confirm(in, out)
@@ -68,6 +57,11 @@ func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 					_, _ = fmt.Fprintf(out, "Canceled execution\n")
 					return nil
 				}
+			}
+
+			e, err := executor.NewExecutor(dryRun)
+			if err != nil {
+				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
 			err = e.Sync(out, repoList, labelList)
@@ -82,7 +76,7 @@ func NewSyncCmd(in io.Reader, out io.Writer) *cobra.Command {
 }
 
 func init() {
-	syncCmd := NewSyncCmd(os.Stdin, os.Stdout)
+	syncCmd := NewSyncCmd()
 	rootCmd.AddCommand(syncCmd)
 
 	syncCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to set in the format of 'label1:color1:description1[,label2:color2:description2,...]' (description can be omitted)")

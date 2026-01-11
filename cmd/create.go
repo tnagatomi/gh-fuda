@@ -23,18 +23,14 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
 
-	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
 	"github.com/tnagatomi/gh-fuda/parser"
 )
 
-
 // NewCreateCmd initialize the create command
-func NewCreateCmd(out io.Writer) *cobra.Command {
+func NewCreateCmd() *cobra.Command {
 	var createCmd = &cobra.Command{
 		Use:   "create",
 		Short: "Create specified labels to the specified repositories",
@@ -49,16 +45,12 @@ func NewCreateCmd(out io.Writer) *cobra.Command {
 				return fmt.Errorf("failed to parse repos option: %v", err)
 			}
 
-			client, err := api.NewHTTPClient(api.ClientOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to create gh http client: %v", err)
-			}
-
-			e, err := executor.NewExecutor(client, dryRun)
+			e, err := executor.NewExecutor(dryRun)
 			if err != nil {
 				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
+			out := cmd.OutOrStdout()
 			err = e.Create(out, repoList, labelList, force)
 			if err != nil {
 				return fmt.Errorf("failed to create labels: %v", err)
@@ -71,7 +63,7 @@ func NewCreateCmd(out io.Writer) *cobra.Command {
 }
 
 func init() {
-	createCmd := NewCreateCmd(os.Stdout)
+	createCmd := NewCreateCmd()
 	rootCmd.AddCommand(createCmd)
 
 	createCmd.Flags().StringVarP(&labels, "labels", "l", "", "Specify the labels to create in the format of 'label1:color1:description1[,label2:color2:description2,...]' (description can be omitted)")

@@ -23,18 +23,37 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
 	"github.com/tnagatomi/gh-fuda/parser"
 )
 
-// NewEmptyCmd represents the empty command
-func NewEmptyCmd() *cobra.Command {
-	var emptyCmd = &cobra.Command{
-		Use:   "empty",
-		Short: "Delete all labels from the specified repositories",
+var (
+	fromLabel   string
+	toLabel     string
+	skipConfirm bool
+)
+
+// NewMergeCmd represents the merge command
+func NewMergeCmd() *cobra.Command {
+	var mergeCmd = &cobra.Command{
+		Use:   "merge",
+		Short: "Merge a source label into a target label across repositories",
+		Long: `Merge a source label into a target label across repositories.
+
+This command:
+1. Adds the target label to all issues, PRs, and discussions that have the source label
+2. Removes the source label from those items
+3. Deletes the source label from the repository
+
+Both the source (--from) and target (--to) labels must exist in each repository.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if strings.EqualFold(fromLabel, toLabel) {
+				return fmt.Errorf("source and target labels must be different")
+			}
+
 			repoList, err := parser.Repo(repos)
 			if err != nil {
 				return fmt.Errorf("failed to parse repos option: %v", err)
@@ -43,7 +62,7 @@ func NewEmptyCmd() *cobra.Command {
 			in := cmd.InOrStdin()
 			out := cmd.OutOrStdout()
 
-			if !dryRun && !force {
+			if !dryRun && !skipConfirm {
 				confirmed, err := confirm(in, out)
 				if err != nil {
 					return fmt.Errorf("failed to confirm execution: %v", err)
@@ -59,21 +78,31 @@ func NewEmptyCmd() *cobra.Command {
 				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
-			err = e.Empty(out, repoList)
+			err = e.Merge(out, repoList, fromLabel, toLabel)
 			if err != nil {
-				return fmt.Errorf("failed to empty labels: %v", err)
+				return fmt.Errorf("failed to merge labels: %v", err)
 			}
 
 			return nil
 		},
 	}
-
-	return emptyCmd
+	return mergeCmd
 }
 
 func init() {
-	emptyCmd := NewEmptyCmd()
-	rootCmd.AddCommand(emptyCmd)
+	mergeCmd := NewMergeCmd()
+	rootCmd.AddCommand(mergeCmd)
 
-	emptyCmd.Flags().BoolVar(&force, "force", false, "Do not prompt for confirmation")
+	mergeCmd.Flags().StringVar(&fromLabel, "from", "", "Source label to merge from (will be deleted)")
+	mergeCmd.Flags().StringVar(&toLabel, "to", "", "Target label to merge into")
+	mergeCmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Do not prompt for confirmation")
+
+	err := mergeCmd.MarkFlagRequired("from")
+	if err != nil {
+		fmt.Printf("Failed to mark flag required: %v\n", err)
+	}
+	err = mergeCmd.MarkFlagRequired("to")
+	if err != nil {
+		fmt.Printf("Failed to mark flag required: %v\n", err)
+	}
 }

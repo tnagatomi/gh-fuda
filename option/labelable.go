@@ -19,26 +19,30 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-package api
+package option
 
-import (
-	"github.com/tnagatomi/gh-fuda/option"
+import "fmt"
+
+// GraphQLID represents a GitHub GraphQL node ID
+type GraphQLID string
+
+// Labelable represents any GitHub resource that can have labels
+// (Issue, PullRequest, or Discussion)
+type LabelableType string
+
+const (
+	LabelableTypeIssue       LabelableType = "Issue"
+	LabelableTypePullRequest LabelableType = "PullRequest"
+	LabelableTypeDiscussion  LabelableType = "Discussion"
 )
 
-// APIClient is an interface for the API client
-type APIClient interface {
-	// Repository label operations
-	CreateLabel(label option.Label, repo option.Repo) error
-	UpdateLabel(label option.Label, repo option.Repo) error
-	DeleteLabel(label string, repo option.Repo) error
-	ListLabels(repo option.Repo) ([]option.Label, error)
+type Labelable struct {
+	ID     GraphQLID // GraphQL node ID
+	Number int
+	Title  string
+	Type   LabelableType
+}
 
-	// Labelable operations (for merge command)
-	SearchLabelables(repo option.Repo, labelName string) ([]option.Labelable, error)
-	AddLabelsToLabelable(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error
-	RemoveLabelsFromLabelable(labelableID option.GraphQLID, labelIDs []option.GraphQLID) error
-
-	// Helper methods for GraphQL operations
-	GetRepositoryID(repo option.Repo) (option.GraphQLID, error)
-	GetLabelID(repo option.Repo, labelName string) (option.GraphQLID, error)
+func (l Labelable) String() string {
+	return fmt.Sprintf("%s #%d: %s", l.Type, l.Number, l.Title)
 }

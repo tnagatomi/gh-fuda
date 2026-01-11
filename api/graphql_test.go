@@ -280,3 +280,195 @@ func TestGraphQLAPI_GetLabelID(t *testing.T) {
 		})
 	}
 }
+
+func TestGraphQLAPI_ListLabels(t *testing.T) {
+	tests := []struct {
+		name       string
+		repo       option.Repo
+		mock       func()
+		want       []option.Label
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "success with labels",
+			repo: option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"labels": map[string]any{
+									"nodes": []map[string]any{
+										{"name": "bug", "color": "d73a4a", "description": "Something is broken"},
+										{"name": "enhancement", "color": "a2eeef", "description": "New feature"},
+									},
+									"pageInfo": map[string]any{
+										"hasNextPage": false,
+										"endCursor":   "",
+									},
+								},
+							},
+						},
+					})
+			},
+			want: []option.Label{
+				{Name: "bug", Color: "d73a4a", Description: "Something is broken"},
+				{Name: "enhancement", Color: "a2eeef", Description: "New feature"},
+			},
+			wantErr: false,
+		},
+		{
+			name: "empty repository",
+			repo: option.Repo{Owner: "owner", Repo: "repo"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": map[string]any{
+								"labels": map[string]any{
+									"nodes": []map[string]any{},
+									"pageInfo": map[string]any{
+										"hasNextPage": false,
+										"endCursor":   "",
+									},
+								},
+							},
+						},
+					})
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "repository not found",
+			repo: option.Repo{Owner: "owner", Repo: "nonexistent"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"repository": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "NOT_FOUND",
+								"message": "Could not resolve to a Repository with the name 'nonexistent'.",
+							},
+						},
+					})
+			},
+			want:       nil,
+			wantErr:    true,
+			wantErrMsg: "repository not found",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer gock.Off()
+			if tt.mock != nil {
+				tt.mock()
+			}
+
+			g := newTestGraphQLAPI(t)
+			got, err := g.ListLabels(tt.repo)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ListLabels() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err.Error() != tt.wantErrMsg {
+				t.Errorf("ListLabels() error = %v, wantErrMsg %v", err.Error(), tt.wantErrMsg)
+				return
+			}
+			if len(got) != len(tt.want) {
+				t.Errorf("ListLabels() returned %d labels, want %d", len(got), len(tt.want))
+				return
+			}
+			for i, label := range got {
+				if label != tt.want[i] {
+					t.Errorf("ListLabels()[%d] = %v, want %v", i, label, tt.want[i])
+				}
+			}
+
+			if !gock.IsDone() {
+				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			}
+		})
+	}
+}
+
+func TestGraphQLAPI_ListLabels_Pagination(t *testing.T) {
+	defer gock.Off()
+
+	// First page
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{
+					"labels": map[string]any{
+						"nodes": []map[string]any{
+							{"name": "bug", "color": "d73a4a", "description": "Bug"},
+						},
+						"pageInfo": map[string]any{
+							"hasNextPage": true,
+							"endCursor":   "cursor1",
+						},
+					},
+				},
+			},
+		})
+
+	// Second page
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{
+					"labels": map[string]any{
+						"nodes": []map[string]any{
+							{"name": "enhancement", "color": "a2eeef", "description": "Enhancement"},
+						},
+						"pageInfo": map[string]any{
+							"hasNextPage": false,
+							"endCursor":   "",
+						},
+					},
+				},
+			},
+		})
+
+	g := newTestGraphQLAPI(t)
+	got, err := g.ListLabels(option.Repo{Owner: "owner", Repo: "repo"})
+	if err != nil {
+		t.Fatalf("ListLabels() error = %v", err)
+	}
+
+	want := []option.Label{
+		{Name: "bug", Color: "d73a4a", Description: "Bug"},
+		{Name: "enhancement", Color: "a2eeef", Description: "Enhancement"},
+	}
+
+	if len(got) != len(want) {
+		t.Errorf("ListLabels() returned %d labels, want %d", len(got), len(want))
+		return
+	}
+	for i, label := range got {
+		if label != want[i] {
+			t.Errorf("ListLabels()[%d] = %v, want %v", i, label, want[i])
+		}
+	}
+
+	if !gock.IsDone() {
+		t.Errorf("pending mocks: %d", len(gock.Pending()))
+	}
+}

@@ -103,6 +103,56 @@ func (g *GraphQLAPI) GetLabelID(repo option.Repo, labelName string) (string, err
 	return query.Repository.Label.ID, nil
 }
 
+// ListLabels fetches all labels in a repository with pagination
+func (g *GraphQLAPI) ListLabels(repo option.Repo) ([]option.Label, error) {
+	var allLabels []option.Label
+	var cursor *string
+
+	for {
+		var query struct {
+			Repository struct {
+				Labels struct {
+					Nodes []struct {
+						Name        string
+						Color       string
+						Description string
+					}
+					PageInfo struct {
+						HasNextPage bool
+						EndCursor   string
+					}
+				} `graphql:"labels(first: 100, after: $cursor)"`
+			} `graphql:"repository(owner: $owner, name: $name)"`
+		}
+
+		variables := map[string]any{
+			"owner":  repo.Owner,
+			"name":   repo.Repo,
+			"cursor": cursor,
+		}
+
+		err := g.client.Query("RepositoryLabels", &query, variables)
+		if err != nil {
+			return nil, wrapGraphQLError(err, ResourceTypeRepository)
+		}
+
+		for _, node := range query.Repository.Labels.Nodes {
+			allLabels = append(allLabels, option.Label{
+				Name:        node.Name,
+				Color:       node.Color,
+				Description: node.Description,
+			})
+		}
+
+		if !query.Repository.Labels.PageInfo.HasNextPage {
+			break
+		}
+		cursor = &query.Repository.Labels.PageInfo.EndCursor
+	}
+
+	return allLabels, nil
+}
+
 // wrapGraphQLError converts GraphQL API errors to custom error types
 func wrapGraphQLError(err error, resourceType ResourceType) error {
 	if err == nil {

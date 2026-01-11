@@ -496,7 +496,29 @@ func (g *GraphQLAPI) AddLabelsToLabelable(labelableID string, labelIDs []string)
 }
 
 // RemoveLabelsFromLabelable removes labels from a labelable resource (issue, PR, or discussion)
-// TODO: Implement
 func (g *GraphQLAPI) RemoveLabelsFromLabelable(labelableID string, labelIDs []string) error {
-	return fmt.Errorf("not implemented")
+	var mutation struct {
+		RemoveLabelsFromLabelable struct {
+			ClientMutationID *string
+		} `graphql:"removeLabelsFromLabelable(input: $input)"`
+	}
+
+	type RemoveLabelsFromLabelableInput struct {
+		LabelableID string   `json:"labelableId"`
+		LabelIDs    []string `json:"labelIds"`
+	}
+
+	variables := map[string]any{
+		"input": RemoveLabelsFromLabelableInput{
+			LabelableID: labelableID,
+			LabelIDs:    labelIDs,
+		},
+	}
+
+	err := g.client.Mutate("RemoveLabelsFromLabelable", &mutation, variables)
+	if err != nil {
+		return wrapGraphQLError(err, ResourceTypeLabel)
+	}
+
+	return nil
 }

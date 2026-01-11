@@ -277,6 +277,9 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 	if strings.Contains(errMsg, "Could not resolve to a Label") {
 		return &NotFoundError{ResourceType: ResourceTypeLabel}
 	}
+	if strings.Contains(errMsg, "Could not resolve to a node") {
+		return &NotFoundError{ResourceType: resourceType}
+	}
 	if strings.Contains(errMsg, "NOT_FOUND") {
 		return &NotFoundError{ResourceType: resourceType}
 	}
@@ -465,9 +468,31 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 }
 
 // AddLabelsToLabelable adds labels to a labelable resource (issue, PR, or discussion)
-// TODO: Implement
 func (g *GraphQLAPI) AddLabelsToLabelable(labelableID string, labelIDs []string) error {
-	return fmt.Errorf("not implemented")
+	var mutation struct {
+		AddLabelsToLabelable struct {
+			ClientMutationID *string
+		} `graphql:"addLabelsToLabelable(input: $input)"`
+	}
+
+	type AddLabelsToLabelableInput struct {
+		LabelableID string   `json:"labelableId"`
+		LabelIDs    []string `json:"labelIds"`
+	}
+
+	variables := map[string]any{
+		"input": AddLabelsToLabelableInput{
+			LabelableID: labelableID,
+			LabelIDs:    labelIDs,
+		},
+	}
+
+	err := g.client.Mutate("AddLabelsToLabelable", &mutation, variables)
+	if err != nil {
+		return wrapGraphQLError(err, ResourceTypeLabel)
+	}
+
+	return nil
 }
 
 // RemoveLabelsFromLabelable removes labels from a labelable resource (issue, PR, or discussion)

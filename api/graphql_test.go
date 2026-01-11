@@ -1186,3 +1186,122 @@ func TestGraphQLAPI_SearchLabelables(t *testing.T) {
 		})
 	}
 }
+
+func TestGraphQLAPI_AddLabelsToLabelable(t *testing.T) {
+	tests := []struct {
+		name        string
+		labelableID string
+		labelIDs    []string
+		mock        func()
+		wantErr     bool
+		wantErrMsg  string
+	}{
+		{
+			name:        "success - single label",
+			labelableID: "I_123",
+			labelIDs:    []string{"LA_456"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"addLabelsToLabelable": map[string]any{
+								"clientMutationId": nil,
+							},
+						},
+					})
+			},
+			wantErr: false,
+		},
+		{
+			name:        "success - multiple labels",
+			labelableID: "PR_123",
+			labelIDs:    []string{"LA_456", "LA_789"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"addLabelsToLabelable": map[string]any{
+								"clientMutationId": nil,
+							},
+						},
+					})
+			},
+			wantErr: false,
+		},
+		{
+			name:        "labelable not found",
+			labelableID: "I_nonexistent",
+			labelIDs:    []string{"LA_456"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"addLabelsToLabelable": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "NOT_FOUND",
+								"message": "Could not resolve to a node with the global id of 'I_nonexistent'",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "label not found",
+		},
+		{
+			name:        "forbidden",
+			labelableID: "I_123",
+			labelIDs:    []string{"LA_456"},
+			mock: func() {
+				gock.New("https://api.github.com").
+					Post("/graphql").
+					Reply(200).
+					JSON(map[string]any{
+						"data": map[string]any{
+							"addLabelsToLabelable": nil,
+						},
+						"errors": []map[string]any{
+							{
+								"type":    "FORBIDDEN",
+								"message": "You don't have permission to add labels",
+							},
+						},
+					})
+			},
+			wantErr:    true,
+			wantErrMsg: "forbidden",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer gock.Off()
+			if tt.mock != nil {
+				tt.mock()
+			}
+
+			g := newTestGraphQLAPI(t)
+			err := g.AddLabelsToLabelable(tt.labelableID, tt.labelIDs)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("AddLabelsToLabelable() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && err.Error() != tt.wantErrMsg {
+				t.Errorf("AddLabelsToLabelable() error = %v, wantErrMsg %v", err.Error(), tt.wantErrMsg)
+				return
+			}
+
+			if !gock.IsDone() {
+				t.Errorf("pending mocks: %d", len(gock.Pending()))
+			}
+		})
+	}
+}

@@ -15,31 +15,31 @@ func TestSyncCmd_MutuallyExclusiveFlags(t *testing.T) {
 	}{
 		{
 			name:        "json and yaml together",
-			args:        []string{"sync", "--json", "labels.json", "--yaml", "labels.yaml", "-R", "owner/repo", "--force"},
+			args:        []string{"sync", "--json", "labels.json", "--yaml", "labels.yaml", "-R", "owner/repo", "-y"},
 			wantErr:     true,
 			errContains: "cannot be used together",
 		},
 		{
 			name:        "json and labels together",
-			args:        []string{"sync", "--json", "labels.json", "--labels", "bug:ff0000", "-R", "owner/repo", "--force"},
+			args:        []string{"sync", "--json", "labels.json", "--labels", "bug:ff0000", "-R", "owner/repo", "-y"},
 			wantErr:     true,
 			errContains: "cannot be used together",
 		},
 		{
 			name:        "yaml and labels together",
-			args:        []string{"sync", "--yaml", "labels.yaml", "--labels", "bug:ff0000", "-R", "owner/repo", "--force"},
+			args:        []string{"sync", "--yaml", "labels.yaml", "--labels", "bug:ff0000", "-R", "owner/repo", "-y"},
 			wantErr:     true,
 			errContains: "cannot be used together",
 		},
 		{
 			name:        "all three together",
-			args:        []string{"sync", "--json", "labels.json", "--yaml", "labels.yaml", "--labels", "bug:ff0000", "-R", "owner/repo", "--force"},
+			args:        []string{"sync", "--json", "labels.json", "--yaml", "labels.yaml", "--labels", "bug:ff0000", "-R", "owner/repo", "-y"},
 			wantErr:     true,
 			errContains: "cannot be used together",
 		},
 		{
 			name:        "no input method specified",
-			args:        []string{"sync", "-R", "owner/repo", "--force"},
+			args:        []string{"sync", "-R", "owner/repo", "-y"},
 			wantErr:     true,
 			errContains: "one of --labels (-l), --json, or --yaml must be specified",
 		},

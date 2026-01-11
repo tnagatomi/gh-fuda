@@ -134,7 +134,7 @@ func TestE2E_Delete(t *testing.T) {
 	mustRunCmd(t, "create", "-R", testRepo1, "-l", "to-delete:ff0000")
 
 	// Delete label
-	stdout := mustRunCmd(t, "delete", "-R", testRepo1, "-l", "to-delete", "--force")
+	stdout := mustRunCmd(t, "delete", "-R", testRepo1, "-l", "to-delete", "-y")
 
 	if !strings.Contains(stdout, `Deleted label "to-delete"`) {
 		t.Errorf("Expected 'Deleted label \"to-delete\"', got: %s", stdout)
@@ -180,7 +180,7 @@ func TestE2E_Sync(t *testing.T) {
 	mustRunCmd(t, "create", "-R", testRepo1, "-l", "old-label:aaaaaa,keep-label:bbbbbb")
 
 	// Sync with new set of labels
-	stdout := mustRunCmd(t, "sync", "-R", testRepo1, "-l", "keep-label:cccccc:Updated,new-label:dddddd", "--force")
+	stdout := mustRunCmd(t, "sync", "-R", testRepo1, "-l", "keep-label:cccccc:Updated,new-label:dddddd", "-y")
 
 	// Should delete old-label, update keep-label, create new-label
 	if !strings.Contains(stdout, `Deleted label "old-label"`) {
@@ -231,7 +231,7 @@ func TestE2E_Empty(t *testing.T) {
 	mustRunCmd(t, "create", "-R", testRepo1, "-l", "label1:aa0000,label2:00aa00,label3:0000aa")
 
 	// Empty repository
-	stdout := mustRunCmd(t, "empty", "-R", testRepo1, "--force")
+	stdout := mustRunCmd(t, "empty", "-R", testRepo1, "-y")
 
 	if !strings.Contains(stdout, `Deleted label "label1"`) {
 		t.Errorf("Expected label1 to be deleted, got: %s", stdout)
@@ -368,6 +368,6 @@ func mustRunCmd(t *testing.T, args ...string) string {
 func cleanupRepos(t *testing.T) {
 	t.Helper()
 	// Empty both test repositories
-	runCmd(t, "empty", "-R", testRepo1, "--force")
-	runCmd(t, "empty", "-R", testRepo2, "--force")
+	runCmd(t, "empty", "-R", testRepo1, "-y")
+	runCmd(t, "empty", "-R", testRepo2, "-y")
 }

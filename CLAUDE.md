@@ -71,9 +71,9 @@ The codebase follows a clean layered architecture:
 - Uses build tag `//go:build e2e` to separate from unit tests
 - Executes actual CLI commands against real GitHub API
 - Requires `GH_TOKEN` or `GITHUB_TOKEN` environment variable
-- Uses test repositories: `tnagatomi/gh-fuda-test-1`, `tnagatomi/gh-fuda-test-2`
+- Test repositories configurable via `GH_FUDA_TEST_REPO_1` and `GH_FUDA_TEST_REPO_2` env vars (defaults: `tnagatomi/gh-fuda-test-1`, `tnagatomi/gh-fuda-test-2`)
 - Run with: `go test -tags=e2e -v`
-- CI runs with `concurrency: 1` to avoid conflicts between parallel jobs
+- Local-only (no CI workflow); run manually for validation
 
 Example test pattern:
 ```go
@@ -192,7 +192,6 @@ Note: `--json`, `--yaml`, and `-l/--labels` flags are mutually exclusive. You mu
 
 GitHub Actions workflows:
 - `test.yml` - Runs unit tests on multiple OS (Ubuntu, Windows, macOS)
-- `e2e.yml` - Runs E2E tests with `concurrency: 1`
 - `golangci-lint.yml` - Code quality checks
 - `release.yml` - Automated release process
 

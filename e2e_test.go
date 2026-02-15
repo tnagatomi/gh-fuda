@@ -25,11 +25,13 @@ THE SOFTWARE.
 // E2E tests that execute the actual CLI binary.
 // These tests require:
 // - GH_TOKEN or GITHUB_TOKEN environment variable
-// - Test repositories: tnagatomi/gh-fuda-test-1, tnagatomi/gh-fuda-test-2
+// - Two test repositories with no important labels (they will be emptied during tests)
+//
+// Test repositories can be configured via environment variables:
+// - GH_FUDA_TEST_REPO_1 (default: tnagatomi/gh-fuda-test-1)
+// - GH_FUDA_TEST_REPO_2 (default: tnagatomi/gh-fuda-test-2)
 //
 // Run with: go test -tags=e2e -v
-//
-// IMPORTANT: These tests should run with concurrency: 1 in CI to avoid conflicts.
 
 package main
 
@@ -40,14 +42,23 @@ import (
 	"testing"
 )
 
-const (
-	testRepo1 = "tnagatomi/gh-fuda-test-1"
-	testRepo2 = "tnagatomi/gh-fuda-test-2"
+var (
+	testRepo1  string
+	testRepo2  string
+	binaryPath string
 )
 
-var binaryPath string
-
 func TestMain(m *testing.M) {
+	// Configure test repositories from environment variables
+	testRepo1 = os.Getenv("GH_FUDA_TEST_REPO_1")
+	if testRepo1 == "" {
+		testRepo1 = "tnagatomi/gh-fuda-test-1"
+	}
+	testRepo2 = os.Getenv("GH_FUDA_TEST_REPO_2")
+	if testRepo2 == "" {
+		testRepo2 = "tnagatomi/gh-fuda-test-2"
+	}
+
 	// Build the binary before running tests
 	cmd := exec.Command("go", "build", "-o", "gh-fuda-test-binary", ".")
 	if err := cmd.Run(); err != nil {

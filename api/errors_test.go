@@ -22,6 +22,7 @@ THE SOFTWARE.
 package api
 
 import (
+	"errors"
 	"testing"
 )
 
@@ -104,6 +105,18 @@ func TestHelperFunctions(t *testing.T) {
 			checkFn:  IsScopeError,
 			expected: false,
 		},
+		{
+			name:     "IsTransient with TransientError",
+			err:      &TransientError{StatusCode: 502},
+			checkFn:  IsTransient,
+			expected: true,
+		},
+		{
+			name:     "IsTransient with other error",
+			err:      &RateLimitError{},
+			checkFn:  IsTransient,
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -170,6 +183,21 @@ func TestErrorMessages(t *testing.T) {
 			name:    "ScopeError without required scope",
 			err:     &ScopeError{RequiredScope: ""},
 			wantMsg: "insufficient token scopes",
+		},
+		{
+			name:    "TransientError with status code",
+			err:     &TransientError{StatusCode: 503},
+			wantMsg: "transient API error (HTTP 503)",
+		},
+		{
+			name:    "TransientError with cause only",
+			err:     &TransientError{Cause: errors.New("connection reset")},
+			wantMsg: "transient API error: connection reset",
+		},
+		{
+			name:    "TransientError empty",
+			err:     &TransientError{},
+			wantMsg: "transient API error",
 		},
 	}
 

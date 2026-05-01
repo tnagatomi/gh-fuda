@@ -22,7 +22,10 @@ THE SOFTWARE.
 package api
 
 import (
+	"errors"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -37,6 +40,7 @@ type GraphQLAPI struct {
 	// Cache for repository IDs to avoid redundant queries
 	repoIDCache map[string]option.GraphQLID
 	repoIDMu    sync.RWMutex
+	retry       retryConfig
 }
 
 // NewGraphQLAPI creates a new GraphQL API client
@@ -48,7 +52,44 @@ func NewGraphQLAPI() (*GraphQLAPI, error) {
 	return &GraphQLAPI{
 		client:      client,
 		repoIDCache: make(map[string]option.GraphQLID),
+		retry:       defaultRetryConfig(),
 	}, nil
+}
+
+// query runs a GraphQL query with automatic retry on rate limit and transient errors.
+func (g *GraphQLAPI) query(name string, q any, variables map[string]any, resourceType ResourceType) error {
+	return withRetry(func() error {
+		if err := g.client.Query(name, q, variables); err != nil {
+			return wrapGraphQLError(err, resourceType)
+		}
+		return nil
+	}, g.retry)
+}
+
+// mutate runs an idempotent GraphQL mutation with automatic retry on rate
+// limit and transient errors.
+func (g *GraphQLAPI) mutate(name string, m any, variables map[string]any, resourceType ResourceType) error {
+	return withRetry(func() error {
+		if err := g.client.Mutate(name, m, variables); err != nil {
+			return wrapGraphQLError(err, resourceType)
+		}
+		return nil
+	}, g.retry)
+}
+
+// mutateNonIdempotent runs a non-idempotent GraphQL mutation. Retrying on a
+// transient/network error could observe AlreadyExists/NotFound from a
+// previously-committed call and report a false failure, so this path retries
+// only on rate-limit errors (which are gateway-rejected before commit).
+func (g *GraphQLAPI) mutateNonIdempotent(name string, m any, variables map[string]any, resourceType ResourceType) error {
+	cfg := g.retry
+	cfg.retryable = IsRateLimit
+	return withRetry(func() error {
+		if err := g.client.Mutate(name, m, variables); err != nil {
+			return wrapGraphQLError(err, resourceType)
+		}
+		return nil
+	}, cfg)
 }
 
 // GetRepositoryID fetches the GraphQL node ID for a repository
@@ -74,9 +115,8 @@ func (g *GraphQLAPI) GetRepositoryID(repo option.Repo) (option.GraphQLID, error)
 		"name":  graphql.String(repo.Repo),
 	}
 
-	err := g.client.Query("RepositoryID", &query, variables)
-	if err != nil {
-		return "", wrapGraphQLError(err, ResourceTypeRepository)
+	if err := g.query("RepositoryID", &query, variables, ResourceTypeRepository); err != nil {
+		return "", err
 	}
 
 	// Store in cache with write lock
@@ -103,9 +143,8 @@ func (g *GraphQLAPI) GetLabelID(repo option.Repo, labelName string) (option.Grap
 		"labelName": graphql.String(labelName),
 	}
 
-	err := g.client.Query("LabelID", &query, variables)
-	if err != nil {
-		return "", wrapGraphQLError(err, ResourceTypeLabel)
+	if err := g.query("LabelID", &query, variables, ResourceTypeLabel); err != nil {
+		return "", err
 	}
 
 	if query.Repository.Label.ID == "" {
@@ -143,9 +182,8 @@ func (g *GraphQLAPI) ListLabels(repo option.Repo) ([]option.Label, error) {
 			"cursor": cursor,
 		}
 
-		err := g.client.Query("RepositoryLabels", &query, variables)
-		if err != nil {
-			return nil, wrapGraphQLError(err, ResourceTypeRepository)
+		if err := g.query("RepositoryLabels", &query, variables, ResourceTypeRepository); err != nil {
+			return nil, err
 		}
 
 		for _, node := range query.Repository.Labels.Nodes {
@@ -197,12 +235,7 @@ func (g *GraphQLAPI) CreateLabel(label option.Label, repo option.Repo) error {
 		},
 	}
 
-	err = g.client.Mutate("CreateLabel", &mutation, variables)
-	if err != nil {
-		return wrapGraphQLError(err, ResourceTypeLabel)
-	}
-
-	return nil
+	return g.mutateNonIdempotent("CreateLabel", &mutation, variables, ResourceTypeLabel)
 }
 
 // UpdateLabel updates an existing label in a repository
@@ -236,12 +269,7 @@ func (g *GraphQLAPI) UpdateLabel(label option.Label, repo option.Repo) error {
 		},
 	}
 
-	err = g.client.Mutate("UpdateLabel", &mutation, variables)
-	if err != nil {
-		return wrapGraphQLError(err, ResourceTypeLabel)
-	}
-
-	return nil
+	return g.mutate("UpdateLabel", &mutation, variables, ResourceTypeLabel)
 }
 
 // DeleteLabel deletes a label from a repository
@@ -267,12 +295,7 @@ func (g *GraphQLAPI) DeleteLabel(label string, repo option.Repo) error {
 		},
 	}
 
-	err = g.client.Mutate("DeleteLabel", &mutation, variables)
-	if err != nil {
-		return wrapGraphQLError(err, ResourceTypeLabel)
-	}
-
-	return nil
+	return g.mutateNonIdempotent("DeleteLabel", &mutation, variables, ResourceTypeLabel)
 }
 
 // wrapGraphQLError converts GraphQL API errors to custom error types
@@ -281,7 +304,34 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 		return nil
 	}
 
+	// Check for HTTP-level errors first (5xx, 429) so they map to typed errors
+	// regardless of response body.
+	var httpErr *api.HTTPError
+	if errors.As(err, &httpErr) {
+		if mapped := statusToError(httpErr.StatusCode, err); mapped != nil {
+			return mapped
+		}
+	}
+
 	errMsg := err.Error()
+
+	// shurcooL-graphql (used by go-gh's Query/Mutate) does not preserve
+	// HTTPError on non-2xx responses; it returns a plain error of the form
+	// `non-200 OK status code: <code> <reason> body: "..."`. Recover the
+	// status code so 429/5xx still map to typed errors.
+	if code, ok := parseShurcoolStatusCode(errMsg); ok {
+		if mapped := statusToError(code, err); mapped != nil {
+			return mapped
+		}
+	}
+
+	// Transport-level failures (timeout, connection reset, DNS) surface from
+	// shurcooL-graphql as the raw Go error, not an HTTPError or status-code
+	// string. Treat any net.Error as transient so the request is retried.
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return &TransientError{Cause: err}
+	}
 
 	// Check for common GraphQL error patterns
 	if strings.Contains(errMsg, "Could not resolve to a Repository") {
@@ -313,6 +363,36 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 	}
 
 	return fmt.Errorf("GraphQL API error: %s", errMsg)
+}
+
+// parseShurcoolStatusCode extracts the HTTP status code from a shurcooL-graphql
+// non-200 error message. Returns (0, false) if the message does not match.
+func parseShurcoolStatusCode(msg string) (int, bool) {
+	_, after, ok := strings.Cut(msg, "non-200 OK status code: ")
+	if !ok {
+		return 0, false
+	}
+	fields := strings.Fields(after)
+	if len(fields) == 0 {
+		return 0, false
+	}
+	code, err := strconv.Atoi(fields[0])
+	if err != nil {
+		return 0, false
+	}
+	return code, true
+}
+
+// statusToError maps an HTTP status code to a typed retryable error, or nil if
+// the status is not retryable.
+func statusToError(code int, cause error) error {
+	switch {
+	case code == 429:
+		return &RateLimitError{}
+	case code >= 500 && code < 600:
+		return &TransientError{StatusCode: code, Cause: cause}
+	}
+	return nil
 }
 
 // escapeSearchQuery escapes special characters in a string for use in GitHub search queries.
@@ -369,9 +449,8 @@ func (g *GraphQLAPI) searchIssuesAndPRs(repo option.Repo, labelName string) ([]o
 			"cursor": cursor,
 		}
 
-		err := g.client.Query("SearchIssuesAndPRs", &query, variables)
-		if err != nil {
-			return nil, wrapGraphQLError(err, ResourceTypeRepository)
+		if err := g.query("SearchIssuesAndPRs", &query, variables, ResourceTypeRepository); err != nil {
+			return nil, err
 		}
 
 		for _, node := range query.Search.Nodes {
@@ -440,22 +519,14 @@ func (g *GraphQLAPI) searchDiscussions(repo option.Repo, labelName string) ([]op
 			"cursor": cursor,
 		}
 
-		err := g.client.Query("SearchDiscussions", &query, variables)
-		if err != nil {
+		if err := g.query("SearchDiscussions", &query, variables, ResourceTypeRepository); err != nil {
+			// Treat "discussions disabled" as an empty result rather than an error.
 			errMsg := err.Error()
-			// Check for explicit errors first
-			if strings.Contains(errMsg, "Could not resolve to a Repository") {
-				return nil, wrapGraphQLError(err, ResourceTypeRepository)
-			}
-			if strings.Contains(errMsg, "FORBIDDEN") || strings.Contains(errMsg, "don't have permission") {
-				return nil, wrapGraphQLError(err, ResourceTypeRepository)
-			}
-			// If discussions are not enabled/supported, just return empty
 			if strings.Contains(errMsg, "does not have discussions enabled") ||
 				strings.Contains(errMsg, "Discussions are disabled") {
 				return allLabelables, nil
 			}
-			return nil, wrapGraphQLError(err, ResourceTypeRepository)
+			return nil, err
 		}
 
 		for _, node := range query.Search.Nodes {
@@ -511,12 +582,7 @@ func (g *GraphQLAPI) AddLabelsToLabelable(labelableID option.GraphQLID, labelIDs
 		},
 	}
 
-	err := g.client.Mutate("AddLabelsToLabelable", &mutation, variables)
-	if err != nil {
-		return wrapGraphQLError(err, ResourceTypeLabel)
-	}
-
-	return nil
+	return g.mutate("AddLabelsToLabelable", &mutation, variables, ResourceTypeLabel)
 }
 
 // RemoveLabelsFromLabelable removes labels from a labelable resource (issue, PR, or discussion)
@@ -545,10 +611,5 @@ func (g *GraphQLAPI) RemoveLabelsFromLabelable(labelableID option.GraphQLID, lab
 		},
 	}
 
-	err := g.client.Mutate("RemoveLabelsFromLabelable", &mutation, variables)
-	if err != nil {
-		return wrapGraphQLError(err, ResourceTypeLabel)
-	}
-
-	return nil
+	return g.mutate("RemoveLabelsFromLabelable", &mutation, variables, ResourceTypeLabel)
 }

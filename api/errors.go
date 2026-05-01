@@ -67,6 +67,27 @@ func (e *RateLimitError) Error() string {
 	return "rate limit exceeded"
 }
 
+// TransientError indicates a temporary failure such as a 5xx response or
+// a network error that may succeed if retried.
+type TransientError struct {
+	StatusCode int
+	Cause      error
+}
+
+func (e *TransientError) Error() string {
+	if e.StatusCode != 0 {
+		return fmt.Sprintf("transient API error (HTTP %d)", e.StatusCode)
+	}
+	if e.Cause != nil {
+		return fmt.Sprintf("transient API error: %s", e.Cause.Error())
+	}
+	return "transient API error"
+}
+
+func (e *TransientError) Unwrap() error {
+	return e.Cause
+}
+
 // AlreadyExistsError indicates resource already exists
 type AlreadyExistsError struct {
 	ResourceType ResourceType
@@ -110,6 +131,11 @@ func IsForbidden(err error) bool {
 func IsRateLimit(err error) bool {
 	var rateLimitErr *RateLimitError
 	return errors.As(err, &rateLimitErr)
+}
+
+func IsTransient(err error) bool {
+	var transientErr *TransientError
+	return errors.As(err, &transientErr)
 }
 
 func IsAlreadyExists(err error) bool {

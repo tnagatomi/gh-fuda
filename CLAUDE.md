@@ -122,8 +122,19 @@ func TestFunctionName(t *testing.T) {
 - Summary is displayed at the end showing success/failure counts (format: "Summary: X repositories succeeded, Y failed")
 - Exit code 1 if any operations failed
 - Custom error types for common GitHub API errors (404, 403, etc.) with `ResourceType` enum to distinguish between repository and label errors
+- `RateLimitError` (HTTP 429) and `TransientError` (HTTP 5xx, network failures) are treated as retryable
 - Simplified error messages without redundant details (e.g., "repository not found" instead of "repository 'owner/repo' not found")
 - Command usage is not displayed for runtime errors (only for argument/flag errors)
+
+## Retry Behavior
+
+- All GraphQL queries and mutations are wrapped with `withRetry` in `api/retry.go`
+- Default config: 3 attempts, exponential backoff starting at 1s and capped at 8s (1s, 2s, 4s)
+- The `sleep` function is injectable so unit tests can verify retry sequences without consuming real time
+- Idempotent operations (queries, `UpdateLabel`, `AddLabelsToLabelable`, `RemoveLabelsFromLabelable`) retry on both `RateLimitError` and `TransientError`
+- Non-idempotent mutations (`CreateLabel`, `DeleteLabel`) retry only on `RateLimitError`. Retrying these on transient/network errors could observe `AlreadyExists`/`NotFound` from a previously-committed call and report a false failure; rate limits are gateway-rejected before reaching the data layer, so retrying them is safe
+- `net.Error` (timeouts, connection reset, DNS, context deadline) is mapped to `TransientError` in `wrapGraphQLError` so the retry classifier sees it consistently
+- Because `shurcooL-graphql` (used by go-gh's `Query`/`Mutate`) does not surface `*api.HTTPError` for non-2xx responses, `parseShurcoolStatusCode` recovers the status code from its plain error message so 429/5xx still map to typed errors
 
 ## Label Input Support
 

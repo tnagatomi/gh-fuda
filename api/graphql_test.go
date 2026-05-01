@@ -52,6 +52,7 @@ func newTestGraphQLAPI(t *testing.T) *GraphQLAPI {
 			baseDelay:   0,
 			maxDelay:    0,
 			sleep:       func(time.Duration) {},
+			retryable:   isRetryable,
 		},
 	}
 }

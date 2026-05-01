@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -76,13 +77,13 @@ func (g *GraphQLAPI) mutate(name string, m any, variables map[string]any, resour
 	}, g.retry)
 }
 
-// mutateNonIdempotent runs a non-idempotent GraphQL mutation. It retries only
-// on rate-limit errors, never on transient/network errors, because a retry
-// after a server-side commit could observe AlreadyExists/NotFound and report
-// a false failure.
+// mutateNonIdempotent runs a non-idempotent GraphQL mutation. Retrying on a
+// transient/network error could observe AlreadyExists/NotFound from a
+// previously-committed call and report a false failure, so this path retries
+// only on rate-limit errors (which are gateway-rejected before commit).
 func (g *GraphQLAPI) mutateNonIdempotent(name string, m any, variables map[string]any, resourceType ResourceType) error {
 	cfg := g.retry
-	cfg.retryable = isRateLimitOnly
+	cfg.retryable = IsRateLimit
 	return withRetry(func() error {
 		if err := g.client.Mutate(name, m, variables); err != nil {
 			return wrapGraphQLError(err, resourceType)
@@ -307,11 +308,8 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 	// regardless of response body.
 	var httpErr *api.HTTPError
 	if errors.As(err, &httpErr) {
-		switch {
-		case httpErr.StatusCode == 429:
-			return &RateLimitError{}
-		case httpErr.StatusCode >= 500 && httpErr.StatusCode < 600:
-			return &TransientError{StatusCode: httpErr.StatusCode, Cause: err}
+		if mapped := statusToError(httpErr.StatusCode, err); mapped != nil {
+			return mapped
 		}
 	}
 
@@ -322,11 +320,8 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 	// `non-200 OK status code: <code> <reason> body: "..."`. Recover the
 	// status code so 429/5xx still map to typed errors.
 	if code, ok := parseShurcoolStatusCode(errMsg); ok {
-		switch {
-		case code == 429:
-			return &RateLimitError{}
-		case code >= 500 && code < 600:
-			return &TransientError{StatusCode: code, Cause: err}
+		if mapped := statusToError(code, err); mapped != nil {
+			return mapped
 		}
 	}
 
@@ -377,11 +372,27 @@ func parseShurcoolStatusCode(msg string) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	var code int
-	if _, err := fmt.Sscanf(after, "%d", &code); err != nil {
+	fields := strings.Fields(after)
+	if len(fields) == 0 {
+		return 0, false
+	}
+	code, err := strconv.Atoi(fields[0])
+	if err != nil {
 		return 0, false
 	}
 	return code, true
+}
+
+// statusToError maps an HTTP status code to a typed retryable error, or nil if
+// the status is not retryable.
+func statusToError(code int, cause error) error {
+	switch {
+	case code == 429:
+		return &RateLimitError{}
+	case code >= 500 && code < 600:
+		return &TransientError{StatusCode: code, Cause: cause}
+	}
+	return nil
 }
 
 // escapeSearchQuery escapes special characters in a string for use in GitHub search queries.

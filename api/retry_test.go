@@ -34,6 +34,7 @@ func testRetryConfig() (retryConfig, *[]time.Duration) {
 		baseDelay:   10 * time.Millisecond,
 		maxDelay:    40 * time.Millisecond,
 		sleep:       func(d time.Duration) { sleeps = append(sleeps, d) },
+		retryable:   isRetryable,
 	}
 	return cfg, &sleeps
 }
@@ -137,6 +138,7 @@ func TestWithRetry_BackoffCappedByMaxDelay(t *testing.T) {
 		baseDelay:   10 * time.Millisecond,
 		maxDelay:    25 * time.Millisecond,
 		sleep:       func(d time.Duration) { sleeps = append(sleeps, d) },
+		retryable:   isRetryable,
 	}
 
 	_ = withRetry(func() error {
@@ -161,7 +163,7 @@ func TestWithRetry_BackoffCappedByMaxDelay(t *testing.T) {
 
 func TestWithRetry_CustomRetryablePredicate(t *testing.T) {
 	cfg, sleeps := testRetryConfig()
-	cfg.retryable = isRateLimitOnly
+	cfg.retryable = IsRateLimit
 	calls := 0
 
 	// TransientError is normally retryable but the custom predicate excludes
@@ -184,7 +186,7 @@ func TestWithRetry_CustomRetryablePredicate(t *testing.T) {
 
 func TestWithRetry_RateLimitOnlyStillRetriesRateLimit(t *testing.T) {
 	cfg, _ := testRetryConfig()
-	cfg.retryable = isRateLimitOnly
+	cfg.retryable = IsRateLimit
 	calls := 0
 
 	err := withRetry(func() error {

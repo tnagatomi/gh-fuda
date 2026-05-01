@@ -40,16 +40,13 @@ func defaultRetryConfig() retryConfig {
 		baseDelay:   1 * time.Second,
 		maxDelay:    8 * time.Second,
 		sleep:       time.Sleep,
+		retryable:   isRetryable,
 	}
 }
 
 // withRetry runs fn and retries on retryable errors using exponential backoff.
 // It returns the last error if all attempts fail or fn returns a non-retryable error.
 func withRetry(fn func() error, cfg retryConfig) error {
-	predicate := cfg.retryable
-	if predicate == nil {
-		predicate = isRetryable
-	}
 	var err error
 	delay := cfg.baseDelay
 	for attempt := 1; attempt <= cfg.maxAttempts; attempt++ {
@@ -57,7 +54,7 @@ func withRetry(fn func() error, cfg retryConfig) error {
 		if err == nil {
 			return nil
 		}
-		if !predicate(err) || attempt == cfg.maxAttempts {
+		if !cfg.retryable(err) || attempt == cfg.maxAttempts {
 			return err
 		}
 		cfg.sleep(delay)
@@ -73,13 +70,4 @@ func withRetry(fn func() error, cfg retryConfig) error {
 // and transient (5xx, network) failures.
 func isRetryable(err error) bool {
 	return IsRateLimit(err) || IsTransient(err)
-}
-
-// isRateLimitOnly returns true only for rate-limit errors. Used for non-idempotent
-// mutations (createLabel, deleteLabel) where retrying a transient/network error
-// could observe the side effect of a previously-committed call (AlreadyExists /
-// NotFound) and report a false failure. Rate-limit retries are safe because the
-// gateway rejects the request before it reaches the data layer.
-func isRateLimitOnly(err error) bool {
-	return IsRateLimit(err)
 }

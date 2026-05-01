@@ -22,6 +22,7 @@ THE SOFTWARE.
 package api
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -279,6 +280,18 @@ func (g *GraphQLAPI) DeleteLabel(label string, repo option.Repo) error {
 func wrapGraphQLError(err error, resourceType ResourceType) error {
 	if err == nil {
 		return nil
+	}
+
+	// Check for HTTP-level errors first (5xx, 429) so they map to typed errors
+	// regardless of response body.
+	var httpErr *api.HTTPError
+	if errors.As(err, &httpErr) {
+		switch {
+		case httpErr.StatusCode == 429:
+			return &RateLimitError{}
+		case httpErr.StatusCode >= 500 && httpErr.StatusCode < 600:
+			return &TransientError{StatusCode: httpErr.StatusCode, Cause: err}
+		}
 	}
 
 	errMsg := err.Error()

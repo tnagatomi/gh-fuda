@@ -1606,6 +1606,108 @@ func TestGraphQLAPI_RetryGivesUpAfterMaxAttempts(t *testing.T) {
 	}
 }
 
+func TestGraphQLAPI_CreateLabel_NoRetryOnTransient(t *testing.T) {
+	defer gock.Off()
+
+	// GetRepositoryID succeeds (queries retry on transient, but we return 200 here).
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{"id": "R_1"},
+			},
+		})
+	// CreateLabel mutation returns 503 — must NOT be retried (non-idempotent).
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(503).
+		BodyString("service unavailable")
+
+	g := newTestGraphQLAPI(t)
+	err := g.CreateLabel(option.Label{Name: "bug", Color: "d73a4a"}, option.Repo{Owner: "owner", Repo: "repo"})
+	if err == nil {
+		t.Fatal("CreateLabel() error = nil, want transient error")
+	}
+	if !IsTransient(err) {
+		t.Errorf("CreateLabel() error = %v, want TransientError", err)
+	}
+	if !gock.IsDone() {
+		t.Errorf("pending mocks: %d, want 0 (mutation must not retry on transient)", len(gock.Pending()))
+	}
+}
+
+func TestGraphQLAPI_CreateLabel_RetriesOnRateLimit(t *testing.T) {
+	defer gock.Off()
+
+	// GetRepositoryID succeeds.
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{"id": "R_1"},
+			},
+		})
+	// CreateLabel: rate-limited once, then succeeds.
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(429).
+		BodyString("rate limited")
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"createLabel": map[string]any{
+					"label": map[string]any{"id": "LA_1"},
+				},
+			},
+		})
+
+	g := newTestGraphQLAPI(t)
+	err := g.CreateLabel(option.Label{Name: "bug", Color: "d73a4a"}, option.Repo{Owner: "owner", Repo: "repo"})
+	if err != nil {
+		t.Fatalf("CreateLabel() error = %v, want nil after rate-limit retry", err)
+	}
+	if !gock.IsDone() {
+		t.Errorf("pending mocks: %d, want 0", len(gock.Pending()))
+	}
+}
+
+func TestGraphQLAPI_DeleteLabel_NoRetryOnTransient(t *testing.T) {
+	defer gock.Off()
+
+	// GetLabelID succeeds.
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{
+					"label": map[string]any{"id": "LA_1"},
+				},
+			},
+		})
+	// DeleteLabel mutation returns 503 — must NOT be retried.
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(503).
+		BodyString("service unavailable")
+
+	g := newTestGraphQLAPI(t)
+	err := g.DeleteLabel("bug", option.Repo{Owner: "owner", Repo: "repo"})
+	if err == nil {
+		t.Fatal("DeleteLabel() error = nil, want transient error")
+	}
+	if !IsTransient(err) {
+		t.Errorf("DeleteLabel() error = %v, want TransientError", err)
+	}
+	if !gock.IsDone() {
+		t.Errorf("pending mocks: %d, want 0 (mutation must not retry on transient)", len(gock.Pending()))
+	}
+}
+
 func TestGraphQLAPI_NoRetryOnNonRetryable(t *testing.T) {
 	defer gock.Off()
 

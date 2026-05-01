@@ -159,6 +159,50 @@ func TestWithRetry_BackoffCappedByMaxDelay(t *testing.T) {
 	}
 }
 
+func TestWithRetry_CustomRetryablePredicate(t *testing.T) {
+	cfg, sleeps := testRetryConfig()
+	cfg.retryable = isRateLimitOnly
+	calls := 0
+
+	// TransientError is normally retryable but the custom predicate excludes
+	// it; the call should run exactly once.
+	err := withRetry(func() error {
+		calls++
+		return &TransientError{StatusCode: 503}
+	}, cfg)
+
+	if !IsTransient(err) {
+		t.Errorf("withRetry() error = %v, want TransientError", err)
+	}
+	if calls != 1 {
+		t.Errorf("calls = %d, want 1 (transient must not retry under rate-limit-only predicate)", calls)
+	}
+	if len(*sleeps) != 0 {
+		t.Errorf("sleeps = %v, want none", *sleeps)
+	}
+}
+
+func TestWithRetry_RateLimitOnlyStillRetriesRateLimit(t *testing.T) {
+	cfg, _ := testRetryConfig()
+	cfg.retryable = isRateLimitOnly
+	calls := 0
+
+	err := withRetry(func() error {
+		calls++
+		if calls < 2 {
+			return &RateLimitError{}
+		}
+		return nil
+	}, cfg)
+
+	if err != nil {
+		t.Errorf("withRetry() error = %v, want nil", err)
+	}
+	if calls != 2 {
+		t.Errorf("calls = %d, want 2", calls)
+	}
+}
+
 func TestIsRetryable(t *testing.T) {
 	tests := []struct {
 		name string

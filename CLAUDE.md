@@ -129,9 +129,11 @@ func TestFunctionName(t *testing.T) {
 ## Retry Behavior
 
 - All GraphQL queries and mutations are wrapped with `withRetry` in `api/retry.go`
-- Retries on `RateLimitError` and `TransientError` only; other errors return immediately
 - Default config: 3 attempts, exponential backoff starting at 1s and capped at 8s (1s, 2s, 4s)
 - The `sleep` function is injectable so unit tests can verify retry sequences without consuming real time
+- Idempotent operations (queries, `UpdateLabel`, `AddLabelsToLabelable`, `RemoveLabelsFromLabelable`) retry on both `RateLimitError` and `TransientError`
+- Non-idempotent mutations (`CreateLabel`, `DeleteLabel`) retry only on `RateLimitError`. Retrying these on transient/network errors could observe `AlreadyExists`/`NotFound` from a previously-committed call and report a false failure; rate limits are gateway-rejected before reaching the data layer, so retrying them is safe
+- `net.Error` (timeouts, connection reset, DNS, context deadline) is mapped to `TransientError` in `wrapGraphQLError` so the retry classifier sees it consistently
 - Because `shurcooL-graphql` (used by go-gh's `Query`/`Mutate`) does not surface `*api.HTTPError` for non-2xx responses, `parseShurcoolStatusCode` recovers the status code from its plain error message so 429/5xx still map to typed errors
 
 ## Label Input Support

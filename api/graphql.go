@@ -65,7 +65,8 @@ func (g *GraphQLAPI) query(name string, q any, variables map[string]any, resourc
 	}, g.retry)
 }
 
-// mutate runs a GraphQL mutation with automatic retry on rate limit and transient errors.
+// mutate runs an idempotent GraphQL mutation with automatic retry on rate
+// limit and transient errors.
 func (g *GraphQLAPI) mutate(name string, m any, variables map[string]any, resourceType ResourceType) error {
 	return withRetry(func() error {
 		if err := g.client.Mutate(name, m, variables); err != nil {
@@ -73,6 +74,21 @@ func (g *GraphQLAPI) mutate(name string, m any, variables map[string]any, resour
 		}
 		return nil
 	}, g.retry)
+}
+
+// mutateNonIdempotent runs a non-idempotent GraphQL mutation. It retries only
+// on rate-limit errors, never on transient/network errors, because a retry
+// after a server-side commit could observe AlreadyExists/NotFound and report
+// a false failure.
+func (g *GraphQLAPI) mutateNonIdempotent(name string, m any, variables map[string]any, resourceType ResourceType) error {
+	cfg := g.retry
+	cfg.retryable = isRateLimitOnly
+	return withRetry(func() error {
+		if err := g.client.Mutate(name, m, variables); err != nil {
+			return wrapGraphQLError(err, resourceType)
+		}
+		return nil
+	}, cfg)
 }
 
 // GetRepositoryID fetches the GraphQL node ID for a repository
@@ -218,7 +234,7 @@ func (g *GraphQLAPI) CreateLabel(label option.Label, repo option.Repo) error {
 		},
 	}
 
-	return g.mutate("CreateLabel", &mutation, variables, ResourceTypeLabel)
+	return g.mutateNonIdempotent("CreateLabel", &mutation, variables, ResourceTypeLabel)
 }
 
 // UpdateLabel updates an existing label in a repository
@@ -278,7 +294,7 @@ func (g *GraphQLAPI) DeleteLabel(label string, repo option.Repo) error {
 		},
 	}
 
-	return g.mutate("DeleteLabel", &mutation, variables, ResourceTypeLabel)
+	return g.mutateNonIdempotent("DeleteLabel", &mutation, variables, ResourceTypeLabel)
 }
 
 // wrapGraphQLError converts GraphQL API errors to custom error types

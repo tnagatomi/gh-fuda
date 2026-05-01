@@ -24,6 +24,7 @@ package api
 import (
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 
@@ -311,6 +312,14 @@ func wrapGraphQLError(err error, resourceType ResourceType) error {
 		case code >= 500 && code < 600:
 			return &TransientError{StatusCode: code, Cause: err}
 		}
+	}
+
+	// Transport-level failures (timeout, connection reset, DNS) surface from
+	// shurcooL-graphql as the raw Go error, not an HTTPError or status-code
+	// string. Treat any net.Error as transient so the request is retried.
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return &TransientError{Cause: err}
 	}
 
 	// Check for common GraphQL error patterns

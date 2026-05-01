@@ -22,7 +22,11 @@ THE SOFTWARE.
 package api
 
 import (
+	"context"
+	"errors"
+	"net"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -1471,6 +1475,42 @@ func TestEscapeSearchQuery(t *testing.T) {
 	}
 }
 
+func TestWrapGraphQLError_NetworkError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+	}{
+		{
+			name: "url.Error wrapping connection refused",
+			err: &url.Error{
+				Op:  "Post",
+				URL: "https://api.github.com/graphql",
+				Err: &net.OpError{Op: "dial", Err: errors.New("connection refused")},
+			},
+		},
+		{
+			name: "DNS error",
+			err:  &net.DNSError{Err: "no such host", Name: "api.github.com"},
+		},
+		{
+			name: "context deadline wrapped in url.Error",
+			err: &url.Error{
+				Op:  "Post",
+				URL: "https://api.github.com/graphql",
+				Err: context.DeadlineExceeded,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := wrapGraphQLError(tt.err, ResourceTypeRepository)
+			if !IsTransient(got) {
+				t.Errorf("wrapGraphQLError(%v) = %v, want TransientError", tt.err, got)
+			}
+		})
+	}
+}
+
 func TestGraphQLAPI_RetryOnTransient(t *testing.T) {
 	defer gock.Off()
 
@@ -1504,6 +1544,42 @@ func TestGraphQLAPI_RetryOnTransient(t *testing.T) {
 	}
 	if !gock.IsDone() {
 		t.Errorf("pending mocks: %d (retry should consume all responses)", len(gock.Pending()))
+	}
+}
+
+func TestGraphQLAPI_RetryOnNetworkError(t *testing.T) {
+	defer gock.Off()
+
+	// First two calls fail at the transport layer; third succeeds. The
+	// transport error is wrapped in *url.Error by net/http, which satisfies
+	// net.Error and is therefore classified as transient.
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		ReplyError(errors.New("connection reset by peer"))
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		ReplyError(errors.New("connection reset by peer"))
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{
+					"id": "R_recovered",
+				},
+			},
+		})
+
+	g := newTestGraphQLAPI(t)
+	got, err := g.GetRepositoryID(option.Repo{Owner: "owner", Repo: "repo"})
+	if err != nil {
+		t.Fatalf("GetRepositoryID() error = %v, want nil after retries", err)
+	}
+	if got != "R_recovered" {
+		t.Errorf("GetRepositoryID() = %v, want R_recovered", got)
+	}
+	if !gock.IsDone() {
+		t.Errorf("pending mocks: %d, want 0", len(gock.Pending()))
 	}
 }
 

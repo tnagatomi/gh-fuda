@@ -24,6 +24,7 @@ package api
 import (
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/h2non/gock"
@@ -42,6 +43,12 @@ func newTestGraphQLAPI(t *testing.T) *GraphQLAPI {
 	return &GraphQLAPI{
 		client:      client,
 		repoIDCache: make(map[string]option.GraphQLID),
+		retry: retryConfig{
+			maxAttempts: 3,
+			baseDelay:   0,
+			maxDelay:    0,
+			sleep:       func(time.Duration) {},
+		},
 	}
 }
 
@@ -1461,5 +1468,96 @@ func TestEscapeSearchQuery(t *testing.T) {
 				t.Errorf("escapeSearchQuery(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestGraphQLAPI_RetryOnTransient(t *testing.T) {
+	defer gock.Off()
+
+	// First two calls return 503, third succeeds.
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(503).
+		BodyString("service unavailable")
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(503).
+		BodyString("service unavailable")
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"repository": map[string]any{
+					"id": "R_retry",
+				},
+			},
+		})
+
+	g := newTestGraphQLAPI(t)
+	got, err := g.GetRepositoryID(option.Repo{Owner: "owner", Repo: "repo"})
+	if err != nil {
+		t.Fatalf("GetRepositoryID() error = %v, want nil after retries", err)
+	}
+	if got != "R_retry" {
+		t.Errorf("GetRepositoryID() = %v, want R_retry", got)
+	}
+	if !gock.IsDone() {
+		t.Errorf("pending mocks: %d (retry should consume all responses)", len(gock.Pending()))
+	}
+}
+
+func TestGraphQLAPI_RetryGivesUpAfterMaxAttempts(t *testing.T) {
+	defer gock.Off()
+
+	for range 3 {
+		gock.New("https://api.github.com").
+			Post("/graphql").
+			Reply(503).
+			BodyString("service unavailable")
+	}
+
+	g := newTestGraphQLAPI(t)
+	_, err := g.GetRepositoryID(option.Repo{Owner: "owner", Repo: "repo"})
+	if err == nil {
+		t.Fatal("GetRepositoryID() error = nil, want transient error")
+	}
+	if !IsTransient(err) {
+		t.Errorf("GetRepositoryID() error = %v, want TransientError", err)
+	}
+	if !gock.IsDone() {
+		t.Errorf("pending mocks: %d, want 0", len(gock.Pending()))
+	}
+}
+
+func TestGraphQLAPI_NoRetryOnNonRetryable(t *testing.T) {
+	defer gock.Off()
+
+	// Single 404 response — must not be retried.
+	gock.New("https://api.github.com").
+		Post("/graphql").
+		Reply(200).
+		JSON(map[string]any{
+			"data": map[string]any{
+				"repository": nil,
+			},
+			"errors": []map[string]any{
+				{
+					"type":    "NOT_FOUND",
+					"message": "Could not resolve to a Repository with the name 'nonexistent'.",
+				},
+			},
+		})
+
+	g := newTestGraphQLAPI(t)
+	_, err := g.GetRepositoryID(option.Repo{Owner: "owner", Repo: "nonexistent"})
+	if err == nil {
+		t.Fatal("GetRepositoryID() error = nil, want NotFoundError")
+	}
+	if !IsNotFound(err) {
+		t.Errorf("GetRepositoryID() error = %v, want NotFoundError", err)
+	}
+	if !gock.IsDone() {
+		t.Errorf("pending mocks: %d, want 0 (no retry expected)", len(gock.Pending()))
 	}
 }

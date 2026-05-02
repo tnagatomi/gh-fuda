@@ -23,6 +23,10 @@ package main
 
 import "github.com/tnagatomi/gh-fuda/cmd"
 
+// version is set at build time via ldflags.
+// Example: go build -ldflags "-X main.version=v1.0.0"
+var version = "dev"
+
 func main() {
-	cmd.Execute()
+	cmd.Execute(version)
 }

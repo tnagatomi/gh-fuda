@@ -22,40 +22,24 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"fmt"
-
-	"github.com/spf13/cobra"
+	"bytes"
+	"strings"
+	"testing"
 )
 
-var (
-	repos    string
-	dryRun   bool
-	labels   string
-	jsonPath string
-	yamlPath string
-)
+func TestVersionFlag(t *testing.T) {
+	buf := new(bytes.Buffer)
+	rootCmd.SetOut(buf)
+	rootCmd.SetArgs([]string{"--version"})
+	rootCmd.Version = "test-version"
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:           "gh-fuda",
-	Short:         "gh extension for manipulating labels across multiple repositories",
-	SilenceErrors: true,
-	SilenceUsage:  true,
-}
-
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute(version string) {
-	rootCmd.Version = version
-	cobra.CheckErr(rootCmd.Execute())
-}
-
-func init() {
-	rootCmd.PersistentFlags().StringVarP(&repos, "repos", "R", "", "Select repositories using the OWNER/REPO format separated by comma (e.g., owner1/repo1,owner2/repo2)")
-	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Dry run")
-
-	err := rootCmd.MarkPersistentFlagRequired("repos")
+	err := rootCmd.Execute()
 	if err != nil {
-		fmt.Printf("Failed to mark flag required: %v\n", err)
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := buf.String()
+	if !strings.Contains(output, "test-version") {
+		t.Errorf("expected version output to contain 'test-version', got %q", output)
 	}
 }

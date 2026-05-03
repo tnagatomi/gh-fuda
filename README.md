@@ -18,7 +18,7 @@ Login to GitHub with `gh auth login` (ref. [gh manual of gh auth login](https://
 
 - `-R`, `--repos`: Select repositories using the `OWNER/REPO` format separated by comma (e.g., `owner1/repo1,owner2/repo1`)
 - `--dry-run`: Check what operations would be executed without actually operating on the repositories
-- `-v`, `--version`: Print the installed extension version and exit
+- `-v`, `--version`: Print the installed extension version and exit (also available as the `version` subcommand)
 
 ### List of Commands
 

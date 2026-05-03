@@ -1,5 +1,5 @@
 /*
-Copyright © 2025 Takayuki Nagatomi <tnagatomi@okweird.net>
+Copyright © 2026 Takayuki Nagatomi <tnagatomi@okweird.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

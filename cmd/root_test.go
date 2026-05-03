@@ -22,43 +22,28 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"fmt"
-
-	"github.com/spf13/cobra"
+	"bytes"
+	"strings"
+	"testing"
 )
 
-var (
-	repos    string
-	dryRun   bool
-	labels   string
-	jsonPath string
-	yamlPath string
-)
+func TestRootCmd_VersionFlag(t *testing.T) {
+	repos = ""
 
-// version is set via -ldflags during release builds.
-var version = "dev"
+	var out bytes.Buffer
+	rootCmd.SetArgs([]string{"--version"})
+	rootCmd.SetOut(&out)
+	rootCmd.SetErr(&out)
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:           "gh-fuda",
-	Short:         "gh extension for manipulating labels across multiple repositories",
-	Version:       version,
-	SilenceErrors: true,
-	SilenceUsage:  true,
-}
+	if err := rootCmd.Execute(); err != nil {
+		t.Fatalf("Execute() unexpected error: %v", err)
+	}
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
-}
-
-func init() {
-	rootCmd.PersistentFlags().StringVarP(&repos, "repos", "R", "", "Select repositories using the OWNER/REPO format separated by comma (e.g., owner1/repo1,owner2/repo2)")
-	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "Dry run")
-
-	err := rootCmd.MarkPersistentFlagRequired("repos")
-	if err != nil {
-		fmt.Printf("Failed to mark flag required: %v\n", err)
+	got := out.String()
+	if !strings.Contains(got, "gh-fuda version") {
+		t.Errorf("output = %q, want it to contain %q", got, "gh-fuda version")
+	}
+	if !strings.Contains(got, version) {
+		t.Errorf("output = %q, want it to contain version %q", got, version)
 	}
 }

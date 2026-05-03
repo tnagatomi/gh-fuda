@@ -37,7 +37,7 @@ func NewVersionCmd() *cobra.Command {
 		Short:              "Print the installed extension version",
 		DisableFlagParsing: true,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Fprintf(cmd.OutOrStdout(), "%s version %s\n", rootCmd.Name(), version)
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s version %s\n", rootCmd.Name(), version)
 		},
 	}
 }

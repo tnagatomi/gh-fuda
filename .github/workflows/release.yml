@@ -14,4 +14,4 @@ jobs:
       - uses: cli/gh-extension-precompile@v2
         with:
           go_version_file: go.mod
-          go_build_options: "-ldflags=-s -w -X github.com/tnagatomi/gh-fuda/cmd.version=${{ github.ref_name }}"
+          go_build_options: -ldflags=-X=github.com/tnagatomi/gh-fuda/cmd.version=${{ github.ref_name }}

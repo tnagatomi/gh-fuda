@@ -1,5 +1,5 @@
 /*
-Copyright © 2025 Takayuki Nagatomi <tnagatomi@okweird.net>
+Copyright © 2026 Takayuki Nagatomi <tnagatomi@okweird.net>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,47 +22,26 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"bytes"
-	"strings"
-	"testing"
+	"fmt"
+
+	"github.com/spf13/cobra"
 )
 
-func TestRootCmd_VersionFlag(t *testing.T) {
-	repos = ""
-
-	var out bytes.Buffer
-	rootCmd.SetArgs([]string{"--version"})
-	rootCmd.SetOut(&out)
-	rootCmd.SetErr(&out)
-
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("Execute() unexpected error: %v", err)
-	}
-
-	got := out.String()
-	if !strings.Contains(got, "gh-fuda version") {
-		t.Errorf("output = %q, want it to contain %q", got, "gh-fuda version")
-	}
-	if !strings.Contains(got, version) {
-		t.Errorf("output = %q, want it to contain version %q", got, version)
+// NewVersionCmd initializes the version command.
+//
+// DisableFlagParsing skips both flag parsing and required-flag validation,
+// so this subcommand runs without the persistent --repos flag.
+func NewVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:                "version",
+		Short:              "Print the installed extension version",
+		DisableFlagParsing: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s version %s\n", rootCmd.Name(), version)
+		},
 	}
 }
 
-func TestRootCmd_VersionSubcommand(t *testing.T) {
-	repos = ""
-
-	var out bytes.Buffer
-	rootCmd.SetArgs([]string{"version"})
-	rootCmd.SetOut(&out)
-	rootCmd.SetErr(&out)
-
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("Execute() unexpected error: %v", err)
-	}
-
-	got := out.String()
-	want := "gh-fuda version " + version + "\n"
-	if got != want {
-		t.Errorf("output = %q, want %q", got, want)
-	}
+func init() {
+	rootCmd.AddCommand(NewVersionCmd())
 }

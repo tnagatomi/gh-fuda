@@ -171,7 +171,7 @@ Summary: all operations completed successfully
 			},
 		},
 		{
-			name:   "multiple repository", 
+			name:   "multiple repository",
 			dryrun: false,
 			args: args{
 				repos: []option.Repo{
@@ -1352,20 +1352,21 @@ Summary: 2 repositories succeeded, 1 failed
 
 func TestEmpty(t *testing.T) {
 	type args struct {
-		repos []option.Repo
+		repos         []option.Repo
+		excludeLabels []string
 	}
 	tests := []struct {
-		name    string
-		dryrun  bool
-		args    args
-		mock    *mock.MockAPI
-		wantOut string
-		wantErr bool
-		wantListCall []option.Repo
+		name           string
+		dryrun         bool
+		args           args
+		mock           *mock.MockAPI
+		wantOut        string
+		wantErr        bool
+		wantListCall   []option.Repo
 		wantDeleteCall []struct {
 			Label string
 			Repo  option.Repo
-		}	
+		}
 	}{
 		{
 			name:   "single repository",
@@ -1419,15 +1420,15 @@ Summary: all operations completed successfully
 				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					if repo.Owner == "tnagatomi" && repo.Repo == "mock-repo-1" {
 						return []option.Label{
-						{Name: "bug"},
-						{Name: "enhancement"},
-						{Name: "question"},
-					}, nil
+							{Name: "bug"},
+							{Name: "enhancement"},
+							{Name: "question"},
+						}, nil
 					} else if repo.Owner == "tnagatomi" && repo.Repo == "mock-repo-2" {
 						return []option.Label{
-						{Name: "invalid"},
-						{Name: "help wanted"},
-					}, nil
+							{Name: "invalid"},
+							{Name: "help wanted"},
+						}, nil
 					}
 					return nil, fmt.Errorf("unexpected repository: %v", repo)
 				},
@@ -1496,9 +1497,9 @@ Summary: 0 repositories succeeded, 1 failed
 			mock: &mock.MockAPI{
 				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
 					return []option.Label{
-					{Name: "bug"},
-					{Name: "enhancement"},
-				}, nil
+						{Name: "bug"},
+						{Name: "enhancement"},
+					}, nil
 				},
 				DeleteLabelFunc: func(label string, repo option.Repo) error {
 					return &api.ForbiddenError{}
@@ -1595,6 +1596,76 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 				Repo  option.Repo
 			}{},
 		},
+		{
+			name:   "dry-run excludes protected labels",
+			dryrun: true,
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				excludeLabels: []string{"good first issue"},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{
+						{Name: "bug"},
+						{Name: "good first issue"},
+					}, nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
+			},
+			wantOut: `Would delete label "bug" for repository "tnagatomi/mock-repo"
+Would skip excluded label "good first issue" for repository "tnagatomi/mock-repo"
+`,
+			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo"},
+			},
+			wantDeleteCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{},
+		},
+		{
+			name:   "excludes protected labels",
+			dryrun: false,
+			args: args{
+				repos: []option.Repo{
+					{Owner: "tnagatomi", Repo: "mock-repo"},
+				},
+				excludeLabels: []string{"good first issue", "help wanted"},
+			},
+			mock: &mock.MockAPI{
+				ListLabelsFunc: func(repo option.Repo) ([]option.Label, error) {
+					return []option.Label{
+						{Name: "bug"},
+						{Name: "good first issue"},
+						{Name: "help wanted"},
+					}, nil
+				},
+				DeleteLabelFunc: func(label string, repo option.Repo) error {
+					return nil
+				},
+			},
+			wantOut: `Deleted label "bug" for repository "tnagatomi/mock-repo"
+Skipped excluded label "good first issue" for repository "tnagatomi/mock-repo"
+Skipped excluded label "help wanted" for repository "tnagatomi/mock-repo"
+
+Summary: all operations completed successfully
+`,
+			wantErr: false,
+			wantListCall: []option.Repo{
+				{Owner: "tnagatomi", Repo: "mock-repo"},
+			},
+			wantDeleteCall: []struct {
+				Label string
+				Repo  option.Repo
+			}{
+				{Label: "bug", Repo: option.Repo{Owner: "tnagatomi", Repo: "mock-repo"}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -1604,7 +1675,7 @@ Would delete label "question" for repository "tnagatomi/mock-repo"
 				dryRun: tt.dryrun,
 			}
 			out := &bytes.Buffer{}
-			err := e.Empty(out, tt.args.repos)
+			err := e.Empty(out, tt.args.repos, tt.args.excludeLabels)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Empty() error = %v, wantErr %v", err, tt.wantErr)
 				return

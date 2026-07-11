@@ -179,11 +179,13 @@ Delete all labels from the specified repositories.
 ##### Options
 
 - `-y`, `--yes`: Do not prompt for confirmation
+- `--exclude`: Comma-separated label names to keep
 
 ##### Example
 
 ```bash
 gh fuda empty -R "owner1/repo1,owner1/repo2,owner2/repo1"
+gh fuda empty -R "owner1/repo1" --exclude "good first issue,help wanted"
 ```
 
 #### Merge Labels

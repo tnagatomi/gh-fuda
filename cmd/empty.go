@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/tnagatomi/gh-fuda/executor"
@@ -33,6 +34,7 @@ import (
 func NewEmptyCmd() *cobra.Command {
 	var skipConfirm bool
 	var forceDeprecated bool
+	var exclude string
 
 	var emptyCmd = &cobra.Command{
 		Use:   "empty",
@@ -41,6 +43,11 @@ func NewEmptyCmd() *cobra.Command {
 			repoList, err := parser.Repo(repos)
 			if err != nil {
 				return fmt.Errorf("failed to parse repos option: %v", err)
+			}
+
+			excludeLabels, err := parseExcludeLabels(exclude)
+			if err != nil {
+				return fmt.Errorf("failed to parse exclude option: %v", err)
 			}
 
 			in := cmd.InOrStdin()
@@ -62,7 +69,7 @@ func NewEmptyCmd() *cobra.Command {
 				return fmt.Errorf("failed to create executor: %v", err)
 			}
 
-			err = e.Empty(out, repoList)
+			err = e.Empty(out, repoList, excludeLabels)
 			if err != nil {
 				return fmt.Errorf("failed to empty labels: %v", err)
 			}
@@ -73,9 +80,27 @@ func NewEmptyCmd() *cobra.Command {
 
 	emptyCmd.Flags().BoolVarP(&skipConfirm, "yes", "y", false, "Do not prompt for confirmation")
 	emptyCmd.Flags().BoolVar(&forceDeprecated, "force", false, "Do not prompt for confirmation")
+	emptyCmd.Flags().StringVar(&exclude, "exclude", "", "Comma-separated label names to keep")
 	_ = emptyCmd.Flags().MarkDeprecated("force", "use -y/--yes instead")
 
 	return emptyCmd
+}
+
+func parseExcludeLabels(input string) ([]string, error) {
+	if input == "" {
+		return nil, nil
+	}
+
+	parts := strings.Split(input, ",")
+	labels := make([]string, 0, len(parts))
+	for _, part := range parts {
+		label := strings.TrimSpace(part)
+		if label == "" {
+			return nil, fmt.Errorf("label name cannot be empty")
+		}
+		labels = append(labels, label)
+	}
+	return labels, nil
 }
 
 func init() {

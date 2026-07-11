@@ -422,17 +422,19 @@ func (e *Executor) listLabelsForRepo(repo option.Repo) *JobResult {
 }
 
 // Empty empties labels across multiple repositories
-func (e *Executor) Empty(out io.Writer, repos []option.Repo) error {
+func (e *Executor) Empty(out io.Writer, repos []option.Repo, excludeLabels []string) error {
+	excludeSet := labelSet(excludeLabels)
+
 	// Dry-run mode: execute sequentially with immediate output
 	if e.dryRun {
-		return e.emptyDryRun(out, repos)
+		return e.emptyDryRun(out, repos, excludeSet)
 	}
 
 	// Normal mode: execute in parallel
-	return e.emptyParallel(out, repos)
+	return e.emptyParallel(out, repos, excludeSet)
 }
 
-func (e *Executor) emptyDryRun(out io.Writer, repos []option.Repo) error {
+func (e *Executor) emptyDryRun(out io.Writer, repos []option.Repo, excludeSet map[string]struct{}) error {
 	var hasError bool
 	for _, repo := range repos {
 		labels, err := e.api.ListLabels(repo)
@@ -443,6 +445,10 @@ func (e *Executor) emptyDryRun(out io.Writer, repos []option.Repo) error {
 		}
 
 		for _, label := range labels {
+			if _, ok := excludeSet[label.Name]; ok {
+				_, _ = fmt.Fprintf(out, "Would skip excluded label %q for repository %q\n", label.Name, repo)
+				continue
+			}
 			_, _ = fmt.Fprintf(out, "Would delete label %q for repository %q\n", label.Name, repo)
 		}
 	}
@@ -452,7 +458,7 @@ func (e *Executor) emptyDryRun(out io.Writer, repos []option.Repo) error {
 	return nil
 }
 
-func (e *Executor) emptyParallel(out io.Writer, repos []option.Repo) error {
+func (e *Executor) emptyParallel(out io.Writer, repos []option.Repo, excludeSet map[string]struct{}) error {
 	wp := NewWorkerPool(out)
 	jobs := make([]Job, len(repos))
 
@@ -460,7 +466,7 @@ func (e *Executor) emptyParallel(out io.Writer, repos []option.Repo) error {
 		jobs[i] = Job{
 			ID: i,
 			Func: func() *JobResult {
-				return e.emptyLabelsForRepo(repo)
+				return e.emptyLabelsForRepo(repo, excludeSet)
 			},
 		}
 	}
@@ -482,7 +488,7 @@ func (e *Executor) emptyParallel(out io.Writer, repos []option.Repo) error {
 	return er.Err()
 }
 
-func (e *Executor) emptyLabelsForRepo(repo option.Repo) *JobResult {
+func (e *Executor) emptyLabelsForRepo(repo option.Repo, excludeSet map[string]struct{}) *JobResult {
 	var output strings.Builder
 	var errors []error
 
@@ -498,6 +504,11 @@ func (e *Executor) emptyLabelsForRepo(repo option.Repo) *JobResult {
 	}
 
 	for _, label := range labels {
+		if _, ok := excludeSet[label.Name]; ok {
+			fmt.Fprintf(&output, "Skipped excluded label %q for repository %q\n", label.Name, repo)
+			continue
+		}
+
 		err := e.api.DeleteLabel(label.Name, repo)
 		if err != nil {
 			fmt.Fprintf(&output, "Failed to delete label %q for repository %q: %v\n", label.Name, repo, err)
@@ -512,6 +523,18 @@ func (e *Executor) emptyLabelsForRepo(repo option.Repo) *JobResult {
 		Success: len(errors) == 0,
 		Errors:  errors,
 	}
+}
+
+func labelSet(labels []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(labels))
+	for _, label := range labels {
+		label = strings.TrimSpace(label)
+		if label == "" {
+			continue
+		}
+		set[label] = struct{}{}
+	}
+	return set
 }
 
 // Merge merges a source label into a target label across multiple repositories.
